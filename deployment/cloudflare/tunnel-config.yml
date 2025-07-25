@@ -1,0 +1,35 @@
+# Cloudflare Tunnel Configuration
+# Save this as config.yml in your cloudflared directory
+
+tunnel: YOUR_TUNNEL_ID
+credentials-file: /etc/cloudflared/YOUR_TUNNEL_ID.json
+
+ingress:
+  # Main workout tracker application
+  - hostname: workout-tracker.yourdomain.com
+    service: http://127.0.0.1:80
+    originRequest:
+      httpHostHeader: workout-tracker.yourdomain.com
+      
+  # Direct API access (optional)
+  - hostname: api.workout-tracker.yourdomain.com
+    service: http://127.0.0.1:8080
+    originRequest:
+      httpHostHeader: workout-tracker.yourdomain.com
+      
+  # Health check endpoint
+  - hostname: health.workout-tracker.yourdomain.com
+    service: http://127.0.0.1:8080
+    path: /health
+    
+  # Catch-all rule (required)
+  - service: http_status:404
+
+# Optional: Cloudflare Access rules for additional security
+# warp-routing:
+#   enabled: true
+
+# Optional: Configure origin certificates
+# originRequest:
+#   caPool: /path/to/ca-certificates.crt
+#   noTLSVerify: false

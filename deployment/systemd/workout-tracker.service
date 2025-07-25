@@ -1,0 +1,27 @@
+[Unit]
+Description=Workout Tracker PWA
+After=network.target
+
+[Service]
+Type=exec
+User=workout-tracker
+Group=workout-tracker
+WorkingDirectory=/opt/workout-tracker
+Environment=PATH=/opt/workout-tracker/venv/bin
+EnvironmentFile=/opt/workout-tracker/.env
+ExecStart=/opt/workout-tracker/venv/bin/gunicorn --bind 127.0.0.1:8080 --workers 2 --timeout 120 wsgi:application
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=always
+RestartSec=10
+KillMode=mixed
+TimeoutStopSec=5
+PrivateTmp=true
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/workout-tracker/data /opt/workout-tracker/logs
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

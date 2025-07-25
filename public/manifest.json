@@ -1,0 +1,16 @@
+{
+  "name": "Workout Tracker",
+  "short_name": "WorkoutTracker",
+  "description": "Track your workouts with templates and offline sync",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1f2937",
+  "theme_color": "#3b82f6",
+  "icons": [
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgZmlsbD0iIzNiODJmNiIvPjxwYXRoIGQ9Ik0xMC43NSA0QTcuNzUgNy43NSAwIDAwMyAxMS43NXY0LjVBNy43NSA3Ljc1IDAgMDAxMC43NSAyNGgxLjVBNy43NSA3Ljc1IDAgMDAyMCAxNi4yNXYtNC41QTcuNzUgNy43NSAwIDAwMTIuMjUgNGgtMS41ek0xMiA4YTEgMSAwIDAwLTEgMXY2YTEgMSAwIDEwMiAwVjlhMSAxIDAgMDAtMS0xeiIgZmlsbD0id2hpdGUiLz48L3N2Zz4=",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    }
+  ]
+}

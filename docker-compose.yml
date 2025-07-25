@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  workout-tracker:
+    build: .
+    container_name: workout-tracker
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - FLASK_ENV=production
+      - SECRET_KEY=${SECRET_KEY:-change-this-secret-key}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-change-this-jwt-secret}
+      - DATABASE_PATH=/app/data/workout.db
+    volumes:
+      - workout_data:/app/data
+      - workout_logs:/app/logs
+      - workout_backups:/app/backups
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  nginx:
+    image: nginx:alpine
+    container_name: workout-tracker-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deployment/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./deployment/nginx/workout-tracker-docker.conf:/etc/nginx/conf.d/default.conf:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      - workout-tracker
+
+volumes:
+  workout_data:
+    driver: local
+  workout_logs:
+    driver: local
+  workout_backups:
+    driver: local
+  nginx_logs:
+    driver: local

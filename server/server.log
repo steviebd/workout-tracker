@@ -1,0 +1,43 @@
+ * Serving Flask app 'app'
+ * Debug mode: on
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8080
+ * Running on http://10.0.0.16:8080
+[33mPress CTRL+C to quit[0m
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 105-271-645
+127.0.0.1 - - [25/Jul/2025 12:10:09] "POST /api/auth/login HTTP/1.1" 200 -
+127.0.0.1 - - [25/Jul/2025 12:10:37] "[35m[1mPOST /api/templates HTTP/1.1[0m" 201 -
+127.0.0.1 - - [25/Jul/2025 12:11:42] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [25/Jul/2025 12:11:42] "GET /app.js HTTP/1.1" 200 -
+127.0.0.1 - - [25/Jul/2025 12:11:42] "GET /styles.css HTTP/1.1" 200 -
+127.0.0.1 - - [25/Jul/2025 12:11:43] "GET /sw.js HTTP/1.1" 200 -
+127.0.0.1 - - [25/Jul/2025 12:11:43] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+127.0.0.1 - - [25/Jul/2025 12:11:49] "POST /api/auth/login HTTP/1.1" 200 -
+127.0.0.1 - - [25/Jul/2025 12:11:49] "GET /api/templates HTTP/1.1" 200 -
+127.0.0.1 - - [25/Jul/2025 12:12:02] "[35m[1mPOST /api/templates HTTP/1.1[0m" 201 -
+127.0.0.1 - - [25/Jul/2025 12:12:02] "GET /api/templates HTTP/1.1" 200 -
+127.0.0.1 - - [25/Jul/2025 12:12:02] "GET /api/templates/4/exercises HTTP/1.1" 200 -
+127.0.0.1 - - [25/Jul/2025 12:12:07] "GET /api/templates HTTP/1.1" 200 -
+127.0.0.1 - - [25/Jul/2025 12:12:09] "GET /api/templates HTTP/1.1" 200 -
+127.0.0.1 - - [25/Jul/2025 12:12:09] "GET /api/templates/4/exercises HTTP/1.1" 200 -
+127.0.0.1 - - [25/Jul/2025 12:12:09] "GET /api/sessions/latest/9 HTTP/1.1" 200 -
+127.0.0.1 - - [25/Jul/2025 12:12:09] "GET /api/sessions/latest/10 HTTP/1.1" 200 -
+127.0.0.1 - - [25/Jul/2025 12:12:09] "GET /api/sessions/latest/11 HTTP/1.1" 200 -
+127.0.0.1 - - [25/Jul/2025 12:12:23] "[35m[1mPOST /api/sessions HTTP/1.1[0m" 201 -
+127.0.0.1 - - [25/Jul/2025 12:12:26] "GET /api/sessions HTTP/1.1" 200 -
+127.0.0.1 - - [25/Jul/2025 12:12:26] "GET /api/templates HTTP/1.1" 200 -
+127.0.0.1 - - [25/Jul/2025 12:12:28] "GET /api/templates HTTP/1.1" 200 -
+127.0.0.1 - - [25/Jul/2025 12:12:29] "GET /api/templates HTTP/1.1" 200 -
+127.0.0.1 - - [25/Jul/2025 12:12:29] "GET /api/templates/4/exercises HTTP/1.1" 200 -
+127.0.0.1 - - [25/Jul/2025 12:12:29] "GET /api/sessions/latest/9 HTTP/1.1" 200 -
+127.0.0.1 - - [25/Jul/2025 12:12:29] "GET /api/sessions/latest/10 HTTP/1.1" 200 -
+127.0.0.1 - - [25/Jul/2025 12:12:29] "GET /api/sessions/latest/11 HTTP/1.1" 200 -
+ * Detected change in '/Users/steven/webserver code/server/app.py', reloading
+ * Restarting with stat
+  File "/Users/steven/webserver code/server/app.py", line 32
+    @app.route('/api/auth/register', methods=['POST'])
+    ^
+IndentationError: expected an indented block after function definition on line 29
