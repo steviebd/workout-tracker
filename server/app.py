@@ -14,8 +14,8 @@ def create_app():
     config_name = os.environ.get('FLASK_ENV', 'development')
     app.config.from_object(config[config_name])
     
-    # Configure static files
-    app.static_folder = '../public'
+    # Configure static files (use absolute path)
+    app.static_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'public'))
     
     # Initialize extensions
     jwt = JWTManager(app)
