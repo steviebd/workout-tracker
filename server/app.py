@@ -14,6 +14,9 @@ def create_app():
     config_name = os.environ.get('FLASK_ENV', 'development')
     app.config.from_object(config[config_name])
     
+    # Configure static files
+    app.static_folder = '../public'
+    
     # Initialize extensions
     jwt = JWTManager(app)
     CORS(app)
