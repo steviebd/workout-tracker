@@ -110,6 +110,28 @@ class TemplateExercise:
         with get_db() as conn:
             conn.execute("DELETE FROM template_exercises WHERE template_id = ?", (template_id,))
             conn.commit()
+    
+    @staticmethod
+    def validate_ownership(template_exercise_id, user_id):
+        """Validate that a template exercise belongs to the given user."""
+        with get_db() as conn:
+            result = conn.execute("""
+                SELECT te.id 
+                FROM template_exercises te
+                JOIN templates t ON te.template_id = t.id
+                WHERE te.id = ? AND t.user_id = ?
+            """, (template_exercise_id, user_id)).fetchone()
+            return result is not None
+    
+    @staticmethod
+    def get_by_id(template_exercise_id):
+        """Get a template exercise by ID."""
+        with get_db() as conn:
+            exercise = conn.execute(
+                "SELECT * FROM template_exercises WHERE id = ?",
+                (template_exercise_id,)
+            ).fetchone()
+            return dict(exercise) if exercise else None
 
 class Session:
     @staticmethod

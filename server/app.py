@@ -12,14 +12,21 @@ def create_app():
     
     # Load configuration
     config_name = os.environ.get('FLASK_ENV', 'development')
-    app.config.from_object(config[config_name])
+    config_obj = config[config_name]()  # Initialize config instance
+    app.config.from_object(config_obj)
     
     # Configure static files (use absolute path)
     app.static_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'public'))
     
     # Initialize extensions
     jwt = JWTManager(app)
-    CORS(app)
+    
+    # Configure CORS with security
+    CORS(app, 
+         origins=config_obj.CORS_ORIGINS,
+         supports_credentials=config_obj.CORS_SUPPORTS_CREDENTIALS,
+         allow_headers=['Content-Type', 'Authorization'],
+         methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
     
     # Initialize database
     init_db()
@@ -156,10 +163,14 @@ def register_routes(app):
         
         session_id = Session.create(user_id, template_id, session_date)
         
-        # Create session exercises
+        # Create session exercises with ownership validation
         exercises = data.get('exercises', [])
         for exercise in exercises:
             if all(k in exercise for k in ['template_exercise_id', 'weight_kg', 'reps', 'sets']):
+                # Validate that the template exercise belongs to the current user
+                if not TemplateExercise.validate_ownership(exercise['template_exercise_id'], user_id):
+                    return jsonify({'error': f'Template exercise {exercise["template_exercise_id"]} not found or access denied'}), 403
+                
                 SessionExercise.create(
                     session_id,
                     exercise['template_exercise_id'],
