@@ -127,9 +127,9 @@ This script will:
 1. **Download the application:**
    ```bash
    cd /tmp
-   wget https://github.com/steviebd/webserver-code/archive/main.zip
-   unzip main.zip
-   cd webserver-code-main
+   wget https://github.com/steviebd/workout-tracker/archive/refs/heads/mvp.zip
+   unzip mvp.zip
+   cd workout-tracker-mvp
    ```
 
 2. **Run the installation script:**
