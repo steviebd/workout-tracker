@@ -129,9 +129,11 @@ SKIP_SECRET_VALIDATION={"true" if env_type == "development" else "false"}
     # Save to file
     save_file = input("\nSave to .env file? (y/N): ").strip().lower()
     if save_file == 'y':
-        with open('.env', 'w') as f:
+        # Save to root directory for Docker Compose
+        env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
+        with open(env_path, 'w') as f:
             f.write(env_content)
-        print("✅ Configuration saved to .env")
+        print(f"✅ Configuration saved to {env_path}")
         print("⚠️  Remember to:")
         print("   1. Review the configuration")
         print("   2. Update your domain in CORS_ORIGINS")

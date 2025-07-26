@@ -34,7 +34,7 @@ services:
     container_name: workout-tracker-nginx
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "8081:80"
       - "443:443"
     volumes:
       - ./deployment/nginx/workout-tracker-docker.conf:/etc/nginx/conf.d/default.conf:ro
