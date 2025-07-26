@@ -48,7 +48,6 @@ class WorkoutTracker {
     setupEventListeners() {
         // Auth events
         document.getElementById('login-btn').addEventListener('click', () => this.login());
-        document.getElementById('register-btn').addEventListener('click', () => this.register());
         document.getElementById('logout-btn').addEventListener('click', () => this.logout());
 
         // Navigation
@@ -148,27 +147,7 @@ class WorkoutTracker {
         }
     }
 
-    async register() {
-        const username = document.getElementById('username').value;
-        const password = document.getElementById('password').value;
 
-        if (!username || !password) {
-            alert('Please enter username and password');
-            return;
-        }
-
-        try {
-            const response = await this.apiCall('POST', '/auth/register', { username, password });
-            this.token = response.access_token;
-            this.currentUser = response.user_id;
-            localStorage.setItem('token', this.token);
-            
-            this.showMainScreen();
-            this.loadTemplates();
-        } catch (error) {
-            alert('Registration failed: ' + error.message);
-        }
-    }
 
     logout() {
         this.token = null;

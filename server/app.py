@@ -4,7 +4,7 @@ from flask_jwt_extended import JWTManager, jwt_required
 from flask_cors import CORS
 from config import config
 from db import init_db
-from auth import register, login, get_current_user_id
+from auth import login, get_current_user_id
 from models import Template, TemplateExercise, Session, SessionExercise
 
 def create_app():
@@ -31,10 +31,6 @@ def create_app():
 
 def register_routes(app):
     # Auth routes
-    @app.route('/api/auth/register', methods=['POST'])
-    def auth_register():
-        return register()
-
     @app.route('/api/auth/login', methods=['POST'])
     def auth_login():
         return login()
