@@ -56,6 +56,12 @@ def main():
     if not jwt_minutes:
         jwt_minutes = "15"
     
+    # Environment type
+    print("\n🏭 Environment Configuration:")
+    env_type = input("Environment type (development/production) [production]: ").strip()
+    if not env_type:
+        env_type = "production"
+    
     # Rate limiting configuration
     print("\n🚦 Rate Limiting Configuration:")
     print("Configure API rate limits for security protection")
@@ -79,12 +85,6 @@ def main():
         rate_limit_default = input("General API limits: ").strip() or "1000 per hour, 100 per minute"
         rate_limit_login = input("Login endpoint limit: ").strip() or "5 per minute"
         rate_limit_register = input("Register endpoint limit: ").strip() or "3 per minute"
-    
-    # Environment type
-    print("\n🏭 Environment Configuration:")
-    env_type = input("Environment type (development/production) [production]: ").strip()
-    if not env_type:
-        env_type = "production"
     
     # Generate .env file
     env_content = f"""# Workout Tracker Environment Configuration
