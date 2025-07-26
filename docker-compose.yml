@@ -13,6 +13,11 @@ services:
       - DATABASE_PATH=/app/data/workout.db
       - CORS_ORIGINS=${CORS_ORIGINS:-https://yourdomain.com}
       - CORS_SUPPORTS_CREDENTIALS=${CORS_SUPPORTS_CREDENTIALS:-false}
+      # Rate limiting configuration
+      - RATE_LIMIT_DEFAULT=${RATE_LIMIT_DEFAULT:-1000 per hour, 100 per minute}
+      - RATE_LIMIT_AUTH_LOGIN=${RATE_LIMIT_AUTH_LOGIN:-5 per minute}
+      - RATE_LIMIT_AUTH_REGISTER=${RATE_LIMIT_AUTH_REGISTER:-3 per minute}
+      - RATE_LIMIT_STORAGE_URI=${RATE_LIMIT_STORAGE_URI:-memory://}
     volumes:
       - workout_data:/app/data
       - workout_logs:/app/logs

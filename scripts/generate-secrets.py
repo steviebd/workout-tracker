@@ -56,6 +56,30 @@ def main():
     if not jwt_minutes:
         jwt_minutes = "15"
     
+    # Rate limiting configuration
+    print("\n🚦 Rate Limiting Configuration:")
+    print("Configure API rate limits for security protection")
+    use_defaults = input("Use default rate limits? (Y/n): ").strip().lower()
+    
+    if use_defaults != 'n':
+        if env_type == "development":
+            rate_limit_default = "2000 per hour, 200 per minute"
+            rate_limit_login = "10 per minute"
+            rate_limit_register = "5 per minute"
+        else:
+            rate_limit_default = "1000 per hour, 100 per minute"
+            rate_limit_login = "5 per minute"
+            rate_limit_register = "3 per minute"
+        print(f"Using defaults for {env_type}:")
+        print(f"  General API: {rate_limit_default}")
+        print(f"  Login: {rate_limit_login}")
+        print(f"  Register: {rate_limit_register}")
+    else:
+        print("Enter custom rate limits (format: 'X per minute' or 'X per hour, Y per minute'):")
+        rate_limit_default = input("General API limits: ").strip() or "1000 per hour, 100 per minute"
+        rate_limit_login = input("Login endpoint limit: ").strip() or "5 per minute"
+        rate_limit_register = input("Register endpoint limit: ").strip() or "3 per minute"
+    
     # Environment type
     print("\n🏭 Environment Configuration:")
     env_type = input("Environment type (development/production) [production]: ").strip()
@@ -80,6 +104,12 @@ DATABASE_PATH={"workout.db" if env_type == "development" else "/opt/workout-trac
 # CORS Configuration
 CORS_ORIGINS={cors_origins}
 CORS_SUPPORTS_CREDENTIALS=false
+
+# Rate Limiting Configuration
+RATE_LIMIT_DEFAULT={rate_limit_default}
+RATE_LIMIT_AUTH_LOGIN={rate_limit_login}
+RATE_LIMIT_AUTH_REGISTER={rate_limit_register}
+RATE_LIMIT_STORAGE_URI=memory://
 
 # Flask Environment
 FLASK_ENV={env_type}
@@ -114,6 +144,9 @@ SKIP_SECRET_VALIDATION={"true" if env_type == "development" else "false"}
     print("export JWT_SECRET_KEY=" + jwt_secret)
     print("export CORS_ORIGINS=" + cors_origins)
     print("export JWT_EXPIRES_MINUTES=" + jwt_minutes)
+    print("export RATE_LIMIT_DEFAULT='" + rate_limit_default + "'")
+    print("export RATE_LIMIT_AUTH_LOGIN='" + rate_limit_login + "'")
+    print("export RATE_LIMIT_AUTH_REGISTER='" + rate_limit_register + "'")
     
     print("\n🎉 Security configuration complete!")
     print("💡 Run this script again to generate new secrets for production rotation.")

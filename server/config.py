@@ -40,6 +40,12 @@ class Config:
     CORS_ORIGINS = os.environ.get('CORS_ORIGINS', '*').split(',')
     CORS_SUPPORTS_CREDENTIALS = os.environ.get('CORS_SUPPORTS_CREDENTIALS', 'false').lower() == 'true'
     
+    # Rate Limiting Configuration
+    RATE_LIMIT_DEFAULT = os.environ.get('RATE_LIMIT_DEFAULT', '1000 per hour, 100 per minute')
+    RATE_LIMIT_AUTH_LOGIN = os.environ.get('RATE_LIMIT_AUTH_LOGIN', '5 per minute')
+    RATE_LIMIT_AUTH_REGISTER = os.environ.get('RATE_LIMIT_AUTH_REGISTER', '3 per minute')
+    RATE_LIMIT_STORAGE_URI = os.environ.get('RATE_LIMIT_STORAGE_URI', 'memory://')
+    
 class DevelopmentConfig(Config):
     """Development configuration."""
     def __init__(self):
@@ -53,6 +59,11 @@ class DevelopmentConfig(Config):
     
     # Development CORS - localhost for testing
     CORS_ORIGINS = os.environ.get('CORS_ORIGINS', 'http://localhost:8080').split(',')
+    
+    # Development rate limiting - more lenient
+    RATE_LIMIT_DEFAULT = os.environ.get('RATE_LIMIT_DEFAULT', '2000 per hour, 200 per minute')
+    RATE_LIMIT_AUTH_LOGIN = os.environ.get('RATE_LIMIT_AUTH_LOGIN', '10 per minute')
+    RATE_LIMIT_AUTH_REGISTER = os.environ.get('RATE_LIMIT_AUTH_REGISTER', '5 per minute')
 
 class ProductionConfig(Config):
     """Production configuration."""
