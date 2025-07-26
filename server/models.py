@@ -1,11 +1,55 @@
 from werkzeug.security import generate_password_hash, check_password_hash
 from db import get_db
 import sqlite3
+import re
 from datetime import datetime
 
 class User:
     @staticmethod
+    def validate_password_strength(password):
+        """
+        Validate password strength according to security policy.
+        Returns (is_valid, error_message)
+        """
+        if len(password) < 8:
+            return False, "Password must be at least 8 characters long"
+        
+        if len(password) > 128:
+            return False, "Password must be no longer than 128 characters"
+        
+        # Check for at least one lowercase letter
+        if not re.search(r'[a-z]', password):
+            return False, "Password must contain at least one lowercase letter"
+        
+        # Check for at least one uppercase letter
+        if not re.search(r'[A-Z]', password):
+            return False, "Password must contain at least one uppercase letter"
+        
+        # Check for at least one digit
+        if not re.search(r'\d', password):
+            return False, "Password must contain at least one number"
+        
+        # Check for at least one special character
+        if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+            return False, "Password must contain at least one special character (!@#$%^&*(),.?\":{}|<>)"
+        
+        # Check for common weak passwords
+        weak_passwords = [
+            'password', 'password123', '12345678', 'qwerty123', 'admin123',
+            'letmein', 'welcome123', 'monkey123', '123456789', 'password1'
+        ]
+        if password.lower() in weak_passwords:
+            return False, "Password is too common and easily guessable"
+        
+        return True, "Password meets security requirements"
+    
+    @staticmethod
     def create(username, password):
+        # Validate password strength
+        is_valid, error_message = User.validate_password_strength(password)
+        if not is_valid:
+            raise ValueError(error_message)
+        
         password_hash = generate_password_hash(password)
         with get_db() as conn:
             try:
@@ -110,6 +154,28 @@ class TemplateExercise:
         with get_db() as conn:
             conn.execute("DELETE FROM template_exercises WHERE template_id = ?", (template_id,))
             conn.commit()
+    
+    @staticmethod
+    def validate_ownership(template_exercise_id, user_id):
+        """Validate that a template exercise belongs to the given user."""
+        with get_db() as conn:
+            result = conn.execute("""
+                SELECT te.id 
+                FROM template_exercises te
+                JOIN templates t ON te.template_id = t.id
+                WHERE te.id = ? AND t.user_id = ?
+            """, (template_exercise_id, user_id)).fetchone()
+            return result is not None
+    
+    @staticmethod
+    def get_by_id(template_exercise_id):
+        """Get a template exercise by ID."""
+        with get_db() as conn:
+            exercise = conn.execute(
+                "SELECT * FROM template_exercises WHERE id = ?",
+                (template_exercise_id,)
+            ).fetchone()
+            return dict(exercise) if exercise else None
 
 class Session:
     @staticmethod

@@ -2,42 +2,68 @@ import os
 from flask import Flask, jsonify, request
 from flask_jwt_extended import JWTManager, jwt_required
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from config import config
 from db import init_db
-from auth import register, login, get_current_user_id
+from auth import login, register, get_current_user_id
 from models import Template, TemplateExercise, Session, SessionExercise
+from validation import (
+    validate_request, validate_json_size, ValidationError,
+    TEMPLATE_CREATION_SCHEMA, TEMPLATE_UPDATE_SCHEMA, SESSION_CREATION_SCHEMA,
+    validate_username
+)
+from security_logger import log_data_access, log_access_denied, log_security_event
 
 def create_app():
     app = Flask(__name__)
     
     # Load configuration
     config_name = os.environ.get('FLASK_ENV', 'development')
-    app.config.from_object(config[config_name])
+    config_obj = config[config_name]()  # Initialize config instance
+    app.config.from_object(config_obj)
     
     # Configure static files (use absolute path)
     app.static_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'public'))
     
     # Initialize extensions
     jwt = JWTManager(app)
-    CORS(app)
+    
+    # Configure rate limiting
+    limiter = Limiter(
+        app=app,
+        key_func=get_remote_address,
+        default_limits=config_obj.RATE_LIMIT_DEFAULT.split(', '),
+        storage_uri=config_obj.RATE_LIMIT_STORAGE_URI
+    )
+    
+    # Configure CORS with security
+    CORS(app, 
+         origins=config_obj.CORS_ORIGINS,
+         supports_credentials=config_obj.CORS_SUPPORTS_CREDENTIALS,
+         allow_headers=['Content-Type', 'Authorization'],
+         methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
     
     # Initialize database
     init_db()
     
     # Register routes
-    register_routes(app)
+    register_routes(app, limiter, config_obj)
     
     return app
 
-def register_routes(app):
+def register_routes(app, limiter, config_obj):
     # Auth routes
-    @app.route('/api/auth/register', methods=['POST'])
-    def auth_register():
-        return register()
-
     @app.route('/api/auth/login', methods=['POST'])
+    @limiter.limit(config_obj.RATE_LIMIT_AUTH_LOGIN)
     def auth_login():
         return login()
+    
+    @app.route('/api/auth/register', methods=['POST'])
+    @limiter.limit(config_obj.RATE_LIMIT_AUTH_REGISTER)
+    @validate_json_size(10)  # Small limit for auth data
+    def auth_register():
+        return register()
 
     # Template routes
     @app.route('/api/templates', methods=['GET'])
@@ -49,12 +75,11 @@ def register_routes(app):
 
     @app.route('/api/templates', methods=['POST'])
     @jwt_required()
+    @validate_json_size(50)  # Limit to 50KB
+    @validate_request(TEMPLATE_CREATION_SCHEMA)
     def create_template():
         user_id = get_current_user_id()
         data = request.get_json()
-        
-        if not data or not data.get('name'):
-            return jsonify({'error': 'Template name required'}), 400
         
         template_id = Template.create(user_id, data['name'])
         if template_id is None:
@@ -69,15 +94,16 @@ def register_routes(app):
 
     @app.route('/api/templates/<int:template_id>', methods=['PUT'])
     @jwt_required()
+    @validate_json_size(50)  # Limit to 50KB
+    @validate_request(TEMPLATE_UPDATE_SCHEMA)
     def update_template(template_id):
         user_id = get_current_user_id()
         data = request.get_json()
         
-        if not data or not data.get('name'):
-            return jsonify({'error': 'Template name required'}), 400
-        
         # Check if template exists and belongs to user
-        if not Template.get_by_id(template_id, user_id):
+        template = Template.get_by_id(template_id, user_id)
+        if not template:
+            log_access_denied(user_id, f'template:{template_id}', 'UPDATE')
             return jsonify({'error': 'Template not found'}), 404
         
         # Update template name
@@ -98,7 +124,10 @@ def register_routes(app):
         user_id = get_current_user_id()
         
         if not Template.delete(template_id, user_id):
+            log_access_denied(user_id, f'template:{template_id}', 'DELETE')
             return jsonify({'error': 'Template not found'}), 404
+        
+        log_data_access(user_id, 'template', template_id, 'DELETE')
         
         return '', 204
 
@@ -108,7 +137,9 @@ def register_routes(app):
         user_id = get_current_user_id()
         
         # Check if template belongs to user
-        if not Template.get_by_id(template_id, user_id):
+        template = Template.get_by_id(template_id, user_id)
+        if not template:
+            log_access_denied(user_id, f'template:{template_id}', 'READ_EXERCISES')
             return jsonify({'error': 'Template not found'}), 404
         
         exercises = TemplateExercise.get_by_template(template_id)
@@ -144,12 +175,11 @@ def register_routes(app):
 
     @app.route('/api/sessions', methods=['POST'])
     @jwt_required()
+    @validate_json_size(500)  # Larger limit for session data
+    @validate_request(SESSION_CREATION_SCHEMA)
     def create_session():
         user_id = get_current_user_id()
         data = request.get_json()
-        
-        if not data or not data.get('template_id'):
-            return jsonify({'error': 'Template ID required'}), 400
         
         template_id = data['template_id']
         session_date = data.get('session_date')
@@ -160,10 +190,14 @@ def register_routes(app):
         
         session_id = Session.create(user_id, template_id, session_date)
         
-        # Create session exercises
+        # Create session exercises with ownership validation
         exercises = data.get('exercises', [])
         for exercise in exercises:
             if all(k in exercise for k in ['template_exercise_id', 'weight_kg', 'reps', 'sets']):
+                # Validate that the template exercise belongs to the current user
+                if not TemplateExercise.validate_ownership(exercise['template_exercise_id'], user_id):
+                    return jsonify({'error': f'Template exercise {exercise["template_exercise_id"]} not found or access denied'}), 403
+                
                 SessionExercise.create(
                     session_id,
                     exercise['template_exercise_id'],
