@@ -196,8 +196,8 @@ echo
 print_status "Next steps:"
 echo "1. Configure your domain/IP in nginx config: $APP_DIR/deployment/nginx/workout-tracker.conf"
 echo "2. Set up SSL certificate (recommended: certbot for Let's Encrypt)"
-echo "3. Configure Cloudflare tunnel (see documentation)"
-echo "4. Test the application at http://your-server-ip"
+
+echo "3. Test the application at http://your-server-ip"
 echo
 print_status "Default test credentials:"
 echo "Username: testuser"

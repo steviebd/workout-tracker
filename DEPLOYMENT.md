@@ -1,16 +1,15 @@
 # 🏋️ Workout Tracker PWA - Production Deployment Guide
 
-This guide covers deploying the Workout Tracker PWA in production using LXC containers on Proxmox with Cloudflare Tunnels.
+This guide covers deploying the Workout Tracker PWA in production using LXC containers on Proxmox.
 
 ## Table of Contents
 
 1. [LXC Container Setup on Proxmox](#lxc-container-setup-on-proxmox)
 2. [Application Installation](#application-installation)
-3. [Cloudflare Tunnel Configuration](#cloudflare-tunnel-configuration)
-4. [SSL/HTTPS Setup](#ssl-https-setup)
-5. [Monitoring and Maintenance](#monitoring-and-maintenance)
-6. [Backup and Recovery](#backup-and-recovery)
-7. [Docker Deployment (Alternative)](#docker-deployment-alternative)
+3. [SSL/HTTPS Setup](#ssl-https-setup)
+4. [Monitoring and Maintenance](#monitoring-and-maintenance)
+5. [Backup and Recovery](#backup-and-recovery)
+6. [Docker Deployment (Alternative)](#docker-deployment-alternative)
 
 ## LXC Container Setup on Proxmox
 
@@ -88,14 +87,49 @@ netplan apply
 
 ## Application Installation
 
-### Option 1: Automated Installation (Recommended)
+### Option 1: Automated LXC Installation (Recommended)
+
+**Run on Proxmox host to create and configure everything automatically:**
+
+```bash
+# Download and run the Proxmox LXC helper script
+wget https://github.com/steviebd/webserver-code/raw/main/deployment/scripts/proxmox-lxc-install.sh
+chmod +x proxmox-lxc-install.sh
+
+# Basic installation with DHCP
+./proxmox-lxc-install.sh --password mypassword
+
+# Installation with static IP
+./proxmox-lxc-install.sh --password mypassword --ip 192.168.1.100/24 --gateway 192.168.1.1
+
+# Full customization
+./proxmox-lxc-install.sh \
+  --ct-id 100 \
+  --hostname workout-tracker \
+  --password mypassword \
+  --ssh-key "$(cat ~/.ssh/id_rsa.pub)" \
+  --ip 192.168.1.100/24 \
+  --gateway 192.168.1.1 \
+  --cores 4 \
+  --memory 2048 \
+  --disk-size 16
+```
+
+This script will:
+- Create the LXC container with specified configuration
+- Download Ubuntu 22.04 template if needed
+- Install and configure the Workout Tracker application
+- Set up nginx, systemd service, and all dependencies
+- Provide ready-to-use application
+
+### Option 2: Manual Installation Inside Existing Container
 
 1. **Download the application:**
    ```bash
    cd /tmp
-   wget https://github.com/your-repo/workout-tracker/archive/main.zip
+   wget https://github.com/steviebd/webserver-code/archive/main.zip
    unzip main.zip
-   cd workout-tracker-main
+   cd webserver-code-main
    ```
 
 2. **Run the installation script:**
@@ -113,7 +147,7 @@ netplan apply
    - Initialize database with test data
    - Configure log rotation and backups
 
-### Option 2: Manual Installation
+### Option 3: Manual Installation
 
 1. **Install dependencies:**
    ```bash
@@ -177,65 +211,9 @@ curl http://localhost/health
 journalctl -u workout-tracker -f
 ```
 
-## Cloudflare Tunnel Configuration
-
-### 1. Set up Cloudflare Tunnel
-
-```bash
-# Run the Cloudflare setup script
-./deployment/cloudflare/setup-tunnel.sh
-```
-
-### 2. Manual Cloudflare Configuration
-
-1. **Create Tunnel in Cloudflare Dashboard:**
-   - Go to [Cloudflare Zero Trust](https://dash.cloudflare.com/)
-   - Navigate to **Access > Tunnels**
-   - Click **Create a tunnel**
-   - Choose **Cloudflared**
-   - Name your tunnel: `workout-tracker`
-   - Note the **Tunnel ID**
-
-2. **Download Credentials:**
-   - Download the JSON credentials file
-   - Save as `/etc/cloudflared/YOUR_TUNNEL_ID.json`
-   - Set proper permissions:
-     ```bash
-     chown cloudflared:cloudflared /etc/cloudflared/YOUR_TUNNEL_ID.json
-     chmod 600 /etc/cloudflared/YOUR_TUNNEL_ID.json
-     ```
-
-3. **Configure Tunnel:**
-   ```bash
-   # Copy and edit tunnel configuration
-   cp deployment/cloudflare/tunnel-config.yml /etc/cloudflared/config.yml
-   nano /etc/cloudflared/config.yml
-   
-   # Update with your tunnel ID and domain
-   ```
-
-4. **Start Cloudflare Tunnel:**
-   ```bash
-   systemctl enable cloudflared
-   systemctl start cloudflared
-   systemctl status cloudflared
-   ```
-
-### 3. DNS Configuration
-
-In your Cloudflare DNS settings, create CNAME records:
-
-- **Name:** `workout-tracker` (or subdomain of choice)
-- **Target:** `YOUR_TUNNEL_ID.cfargotunnel.com`
-- **Proxied:** Yes (orange cloud)
-
 ## SSL/HTTPS Setup
 
-### Option 1: Cloudflare Tunnel (Automatic SSL)
-
-When using Cloudflare Tunnels, SSL is automatically handled by Cloudflare.
-
-### Option 2: Let's Encrypt with Certbot
+### Let's Encrypt with Certbot
 
 ```bash
 # Install certbot
@@ -254,12 +232,11 @@ certbot renew --dry-run
 
 ```bash
 # Check all services
-systemctl status workout-tracker nginx cloudflared
+systemctl status workout-tracker nginx
 
 # View logs
 journalctl -u workout-tracker -f
 journalctl -u nginx -f
-journalctl -u cloudflared -f
 ```
 
 ### 2. Performance Monitoring
@@ -275,8 +252,6 @@ echo "Application Status:"
 systemctl is-active workout-tracker
 echo "Nginx Status:"
 systemctl is-active nginx
-echo "Cloudflare Tunnel Status:"
-systemctl is-active cloudflared
 
 echo "=== Resource Usage ==="
 echo "Memory Usage:"
@@ -500,7 +475,7 @@ For issues and questions:
 - Check the logs: `journalctl -u workout-tracker -f`
 - Verify health endpoint: `curl http://localhost/health`
 - Review configuration files
-- Check Cloudflare tunnel status in dashboard
+
 
 ## Next Steps
 
