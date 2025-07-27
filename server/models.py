@@ -65,8 +65,8 @@ class User:
             requirements.append("one number")
         
         # Check for special character
-        if policy['require_special'] and not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
-            requirements.append("one special character (!@#$%^&*(),.?\":{}|<>)")
+        if policy['require_special'] and not re.search(r'[!@#$%^&*(),.?":{}|<>+\-=]', password):
+            requirements.append("one special character (!@#$%^&*(),.?\":{}|<>+-=)")
         
         if requirements:
             return False, f"Password must contain at least: {', '.join(requirements)}"
@@ -84,7 +84,7 @@ class User:
         return True, "Password meets security requirements"
     
     @staticmethod
-    def create(username, password):
+    def create(username, password, email=None, role='user', must_change_password=False):
         # Validate password strength
         is_valid, error_message = User.validate_password_strength(password)
         if not is_valid:
@@ -94,8 +94,8 @@ class User:
         with get_db() as conn:
             try:
                 cursor = conn.execute(
-                    "INSERT INTO users (username, password_hash) VALUES (?, ?)",
-                    (username, password_hash)
+                    "INSERT INTO users (username, email, password_hash, role, must_change_password) VALUES (?, ?, ?, ?, ?)",
+                    (username, email, password_hash, role, must_change_password)
                 )
                 conn.commit()
                 return cursor.lastrowid
@@ -145,15 +145,166 @@ class User:
             if check_password_hash(user['password_hash'], new_password):
                 return False, "New password must be different from current password"
             
-            # Update password
+            # Update password and clear must_change_password flag
             new_password_hash = generate_password_hash(new_password)
             conn.execute(
-                "UPDATE users SET password_hash = ? WHERE id = ?",
+                "UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?",
                 (new_password_hash, user_id)
             )
             conn.commit()
             
             return True, "Password changed successfully"
+    
+    @staticmethod
+    def get_by_email(email):
+        """Get user by email address."""
+        with get_db() as conn:
+            user = conn.execute(
+                "SELECT * FROM users WHERE email = ?", (email,)
+            ).fetchone()
+            return dict(user) if user else None
+    
+    @staticmethod
+    def get_by_id(user_id):
+        """Get user by ID."""
+        with get_db() as conn:
+            user = conn.execute(
+                "SELECT * FROM users WHERE id = ?", (user_id,)
+            ).fetchone()
+            return dict(user) if user else None
+    
+    @staticmethod
+    def get_all_users():
+        """Get all users (admin only)."""
+        with get_db() as conn:
+            users = conn.execute(
+                "SELECT id, username, email, role, created_at, must_change_password FROM users ORDER BY created_at DESC"
+            ).fetchall()
+            return [dict(user) for user in users]
+    
+    @staticmethod
+    def update_user(user_id, username=None, email=None, role=None):
+        """Update user details (admin only)."""
+        updates = []
+        params = []
+        
+        if username is not None:
+            updates.append("username = ?")
+            params.append(username)
+        if email is not None:
+            updates.append("email = ?")
+            params.append(email)
+        if role is not None:
+            updates.append("role = ?")
+            params.append(role)
+            
+        if not updates:
+            return False, "No fields to update"
+            
+        params.append(user_id)
+        
+        with get_db() as conn:
+            try:
+                cursor = conn.execute(
+                    f"UPDATE users SET {', '.join(updates)} WHERE id = ?",
+                    params
+                )
+                conn.commit()
+                return cursor.rowcount > 0, "User updated successfully"
+            except sqlite3.IntegrityError:
+                return False, "Username or email already exists"
+    
+    @staticmethod
+    def delete_user(user_id):
+        """Delete user (admin only)."""
+        with get_db() as conn:
+            cursor = conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+            conn.commit()
+            return cursor.rowcount > 0
+    
+    @staticmethod
+    def reset_user_password(user_id, new_password):
+        """Reset user password (admin only)."""
+        is_valid, error_message = User.validate_password_strength(new_password)
+        if not is_valid:
+            return False, error_message
+        
+        password_hash = generate_password_hash(new_password)
+        with get_db() as conn:
+            cursor = conn.execute(
+                "UPDATE users SET password_hash = ?, must_change_password = 1 WHERE id = ?",
+                (password_hash, user_id)
+            )
+            conn.commit()
+            return cursor.rowcount > 0, "Password reset successfully"
+
+
+class PasswordResetToken:
+    @staticmethod
+    def create(user_id):
+        """Create a password reset token."""
+        import secrets
+        from datetime import datetime, timedelta
+        
+        token = secrets.token_urlsafe(32)
+        expires_at = (datetime.utcnow() + timedelta(hours=1)).isoformat()
+        
+        with get_db() as conn:
+            cursor = conn.execute(
+                "INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES (?, ?, ?)",
+                (user_id, token, expires_at)
+            )
+            conn.commit()
+            return token
+    
+    @staticmethod
+    def verify_and_use(token):
+        """Verify token and mark as used if valid."""
+        from datetime import datetime
+        
+        with get_db() as conn:
+            token_data = conn.execute(
+                "SELECT * FROM password_reset_tokens WHERE token = ? AND used = 0",
+                (token,)
+            ).fetchone()
+            
+            if not token_data:
+                return None
+            
+            token_data = dict(token_data)
+            expires_at = datetime.fromisoformat(token_data['expires_at'])
+            
+            if datetime.utcnow() > expires_at:
+                return None
+            
+            # Mark token as used
+            conn.execute(
+                "UPDATE password_reset_tokens SET used = 1 WHERE id = ?",
+                (token_data['id'],)
+            )
+            conn.commit()
+            
+            return token_data['user_id']
+    
+    @staticmethod
+    def reset_password_with_token(token, new_password):
+        """Reset password using token."""
+        user_id = PasswordResetToken.verify_and_use(token)
+        if not user_id:
+            return False, "Invalid or expired token"
+        
+        is_valid, error_message = User.validate_password_strength(new_password)
+        if not is_valid:
+            return False, error_message
+        
+        password_hash = generate_password_hash(new_password)
+        with get_db() as conn:
+            cursor = conn.execute(
+                "UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?",
+                (password_hash, user_id)
+            )
+            conn.commit()
+            return cursor.rowcount > 0, "Password reset successfully"
 
 class Template:
     @staticmethod

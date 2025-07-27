@@ -1,8 +1,10 @@
 from flask import jsonify, request
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
-from models import User
+from models import User, PasswordResetToken
 from security_logger import log_auth_success, log_auth_failure, log_security_event
 from validation import validate_username
+from email_service import email_service
+from functools import wraps
 
 def login():
     data = request.get_json()
@@ -20,7 +22,12 @@ def login():
     log_auth_success(user['id'], username)
     
     access_token = create_access_token(identity=str(user['id']))
-    return jsonify({'access_token': access_token, 'user_id': user['id']}), 200
+    return jsonify({
+        'access_token': access_token, 
+        'user_id': user['id'],
+        'role': user['role'],
+        'must_change_password': user['must_change_password']
+    }), 200
 
 def register():
     """User registration with validation."""
@@ -107,3 +114,63 @@ def get_password_policy():
 
 def get_current_user_id():
     return int(get_jwt_identity())
+
+def get_current_user():
+    """Get current user data."""
+    user_id = get_current_user_id()
+    return User.get_by_id(user_id)
+
+def require_admin(f):
+    """Decorator to require admin role."""
+    @wraps(f)
+    @jwt_required()
+    def decorated_function(*args, **kwargs):
+        user = get_current_user()
+        if not user or user['role'] != 'admin':
+            log_security_event('ADMIN_ACCESS_DENIED', f'User {user["id"] if user else "unknown"} attempted admin action')
+            return jsonify({'error': 'Admin access required'}), 403
+        return f(*args, **kwargs)
+    return decorated_function
+
+def forgot_password():
+    """Initiate password reset process."""
+    data = request.get_json()
+    if not data or not data.get('email'):
+        return jsonify({'error': 'Email address required'}), 400
+    
+    email = data['email'].lower().strip()
+    user = User.get_by_email(email)
+    
+    if user:
+        # Create reset token
+        token = PasswordResetToken.create(user['id'])
+        
+        # Send email
+        success, message = email_service.send_password_reset_email(
+            user['email'], user['username'], token
+        )
+        
+        if not success:
+            log_security_event('PASSWORD_RESET_EMAIL_FAILED', f'Failed to send reset email to {email}')
+            return jsonify({'error': 'Failed to send reset email'}), 500
+    
+    # Always return success to prevent email enumeration
+    return jsonify({'message': 'If an account with that email exists, a password reset link has been sent'}), 200
+
+def reset_password():
+    """Reset password with token."""
+    data = request.get_json()
+    if not data or not data.get('token') or not data.get('password'):
+        return jsonify({'error': 'Token and new password required'}), 400
+    
+    token = data['token']
+    new_password = data['password']
+    
+    success, message = PasswordResetToken.reset_password_with_token(token, new_password)
+    
+    if success:
+        log_security_event('PASSWORD_RESET_SUCCESS', f'Password reset successful for token')
+        return jsonify({'message': message}), 200
+    else:
+        log_security_event('PASSWORD_RESET_FAILED', f'Password reset failed: {message}')
+        return jsonify({'error': message}), 400

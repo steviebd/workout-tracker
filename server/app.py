@@ -6,8 +6,9 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from config import config
 from db import init_db
-from auth import login, register, change_password, get_password_policy, get_current_user_id
-from models import Template, TemplateExercise, Session, SessionExercise
+from auth import login, register, change_password, get_password_policy, get_current_user_id, require_admin, forgot_password, reset_password, get_current_user
+from models import Template, TemplateExercise, Session, SessionExercise, User, PasswordResetToken
+from email_service import email_service
 from validation import (
     validate_request, validate_json_size, ValidationError,
     TEMPLATE_CREATION_SCHEMA, TEMPLATE_UPDATE_SCHEMA, SESSION_CREATION_SCHEMA,
@@ -75,6 +76,117 @@ def register_routes(app, limiter, config_obj):
     @app.route('/api/auth/password-policy', methods=['GET'])
     def auth_password_policy():
         return get_password_policy()
+    
+    @app.route('/api/auth/forgot-password', methods=['POST'])
+    @limiter.limit("5 per minute")  # Rate limit password reset requests
+    @validate_json_size(10)
+    def auth_forgot_password():
+        return forgot_password()
+    
+    @app.route('/api/auth/reset-password', methods=['POST'])
+    @limiter.limit("10 per minute")
+    @validate_json_size(10)
+    def auth_reset_password():
+        return reset_password()
+
+    # Admin routes
+    @app.route('/api/admin/users', methods=['GET'])
+    @require_admin
+    def admin_get_users():
+        users = User.get_all_users()
+        return jsonify(users)
+    
+    @app.route('/api/admin/users', methods=['POST'])
+    @require_admin
+    @validate_json_size(10)
+    def admin_create_user():
+        data = request.get_json()
+        if not data or not all(k in data for k in ['username', 'email', 'password', 'role']):
+            return jsonify({'error': 'Username, email, password, and role required'}), 400
+        
+        try:
+            validate_username(data['username'])
+            
+            if data['role'] not in ['admin', 'user']:
+                return jsonify({'error': 'Role must be admin or user'}), 400
+            
+            user_id = User.create(
+                data['username'], 
+                data['password'], 
+                data['email'].lower().strip(), 
+                data['role'],
+                must_change_password=True
+            )
+            
+            if user_id is None:
+                return jsonify({'error': 'Username or email already exists'}), 409
+            
+            # Send email with credentials
+            email_service.send_admin_created_user_email(
+                data['email'], data['username'], data['password']
+            )
+            
+            return jsonify({'message': 'User created successfully', 'user_id': user_id}), 201
+            
+        except ValueError as e:
+            return jsonify({'error': str(e)}), 400
+    
+    @app.route('/api/admin/users/<int:user_id>', methods=['PUT'])
+    @require_admin
+    @validate_json_size(10)
+    def admin_update_user(user_id):
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        # Prevent editing own role
+        current_user = get_current_user()
+        if current_user['id'] == user_id and 'role' in data:
+            return jsonify({'error': 'Cannot change your own role'}), 400
+        
+        try:
+            success, message = User.update_user(
+                user_id,
+                username=data.get('username'),
+                email=data.get('email'),
+                role=data.get('role')
+            )
+            
+            if success:
+                return jsonify({'message': message})
+            else:
+                return jsonify({'error': message}), 400
+                
+        except Exception as e:
+            return jsonify({'error': 'Failed to update user'}), 500
+    
+    @app.route('/api/admin/users/<int:user_id>', methods=['DELETE'])
+    @require_admin
+    def admin_delete_user(user_id):
+        # Prevent deleting own account
+        current_user = get_current_user()
+        if current_user['id'] == user_id:
+            return jsonify({'error': 'Cannot delete your own account'}), 400
+        
+        success = User.delete_user(user_id)
+        if success:
+            return '', 204
+        else:
+            return jsonify({'error': 'User not found'}), 404
+    
+    @app.route('/api/admin/users/<int:user_id>/reset-password', methods=['POST'])
+    @require_admin
+    @validate_json_size(10)
+    def admin_reset_user_password(user_id):
+        data = request.get_json()
+        if not data or not data.get('password'):
+            return jsonify({'error': 'New password required'}), 400
+        
+        success, message = User.reset_user_password(user_id, data['password'])
+        if success:
+            return jsonify({'message': message})
+        else:
+            return jsonify({'error': message}), 400
 
     # Template routes
     @app.route('/api/templates', methods=['GET'])

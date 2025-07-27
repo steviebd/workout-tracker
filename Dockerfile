@@ -33,12 +33,11 @@ RUN mkdir -p data logs backups && \
 # Switch to non-root user
 USER workout
 
-# Initialize database with temporary secrets for build
-RUN cd server && DATABASE_PATH=/app/data/workout.db \
-    SECRET_KEY=temp-build-secret-key-32-characters-long \
-    JWT_SECRET_KEY=temp-build-jwt-secret-key-32-characters-long \
-    SKIP_SECRET_VALIDATION=true \
-    python seed.py
+# Copy startup script
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+USER root
+RUN chmod +x /docker-entrypoint.sh
+USER workout
 
 # Expose port
 EXPOSE 8080
@@ -47,5 +46,5 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8080/health || exit 1
 
-# Start application
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "2", "--timeout", "120", "--chdir", "server", "wsgi:application"]
+# Start application with initialization
+CMD ["/docker-entrypoint.sh"]

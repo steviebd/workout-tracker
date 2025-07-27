@@ -26,6 +26,16 @@ services:
       - PASSWORD_REQUIRE_NUMBERS=${PASSWORD_REQUIRE_NUMBERS:-true}
       - PASSWORD_REQUIRE_SPECIAL=${PASSWORD_REQUIRE_SPECIAL:-true}
       - PASSWORD_BLOCK_COMMON=${PASSWORD_BLOCK_COMMON:-true}
+      # Email configuration
+      - SMTP_SERVER=${SMTP_SERVER:-localhost}
+      - SMTP_PORT=${SMTP_PORT:-25}
+      - SMTP_USERNAME=${SMTP_USERNAME}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - SMTP_USE_TLS=${SMTP_USE_TLS:-false}
+      - FROM_EMAIL=${FROM_EMAIL:-noreply@workout-tracker.local}
+      - APP_URL=${APP_URL:-http://localhost}
+      # Admin user configuration  
+      - "ADMIN_TEMP_PASSWORD=${ADMIN_TEMP_PASSWORD}"
     volumes:
       - workout_data:/app/data
       - workout_logs:/app/logs
