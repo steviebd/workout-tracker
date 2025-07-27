@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Settings Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .tab-content.hidden { display: none; }
+        .nav-btn.active { border-color: #3b82f6; color: #3b82f6; }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="max-w-md mx-auto bg-white min-h-screen">
+        <h1 class="p-4 text-xl font-bold">Settings Tab Test</h1>
+        
+        <!-- Simple Navigation -->
+        <div class="flex border-b">
+            <button onclick="showTab('templates')" class="flex-1 p-3 border-b-2 border-gray-300">Templates</button>
+            <button onclick="showTab('settings')" class="flex-1 p-3 border-b-2 border-blue-500 text-blue-500">Settings</button>
+        </div>
+        
+        <!-- Content -->
+        <div class="p-4">
+            <!-- Templates Tab -->
+            <div id="templates" class="tab-content" style="display: none;">
+                <h2>Templates Content</h2>
+                <p>This is the templates tab.</p>
+            </div>
+            
+            <!-- Settings Tab -->
+            <div id="settings" class="tab-content" style="display: block;">
+                <h2 class="text-lg font-bold mb-4">⚙️ Settings</h2>
+                
+                <div class="bg-gray-50 p-4 rounded mb-4">
+                    <h3 class="font-medium mb-3">🔒 Change Password</h3>
+                    <div class="space-y-3">
+                        <input type="password" placeholder="Current Password" class="w-full p-2 border rounded">
+                        <input type="password" placeholder="New Password" class="w-full p-2 border rounded">
+                        <input type="password" placeholder="Confirm New Password" class="w-full p-2 border rounded">
+                        <button onclick="alert('Password change clicked!')" class="w-full bg-blue-500 text-white p-2 rounded">
+                            Change Password
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-50 p-4 rounded">
+                    <h3 class="font-medium mb-3">👤 Account</h3>
+                    <button onclick="alert('Logout clicked!')" class="w-full bg-red-500 text-white p-2 rounded">
+                        Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function showTab(tabName) {
+            console.log('Showing tab:', tabName);
+            
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.style.display = 'none';
+            });
+            
+            // Show selected tab
+            const selectedTab = document.getElementById(tabName);
+            if (selectedTab) {
+                selectedTab.style.display = 'block';
+                console.log('Tab shown:', tabName);
+            } else {
+                console.error('Tab not found:', tabName);
+            }
+            
+            // Update button styles
+            document.querySelectorAll('button').forEach(btn => {
+                btn.classList.remove('border-blue-500', 'text-blue-500');
+                btn.classList.add('border-gray-300');
+            });
+            
+            // Highlight active button
+            event.target.classList.remove('border-gray-300');
+            event.target.classList.add('border-blue-500', 'text-blue-500');
+        }
+        
+        console.log('Simple test loaded');
+    </script>
+</body>
+</html>

@@ -4,9 +4,12 @@ class WorkoutTracker {
         this.apiBase = '/api';
         this.token = localStorage.getItem('token');
         this.currentUser = null;
+        this.userRole = null;
+        this.mustChangePassword = false;
         this.currentTemplate = null;
         this.currentSession = null;
         this.isOnline = navigator.onLine;
+        this.editingUserId = null;
         
         this.initializeIndexedDB();
         this.registerServiceWorker();
@@ -49,6 +52,10 @@ class WorkoutTracker {
         // Auth events
         document.getElementById('login-btn').addEventListener('click', () => this.login());
         document.getElementById('logout-btn').addEventListener('click', () => this.logout());
+        document.getElementById('forgot-password-btn').addEventListener('click', () => this.showForgotPassword());
+        document.getElementById('back-to-login-btn').addEventListener('click', () => this.showLoginForm());
+        document.getElementById('send-reset-btn').addEventListener('click', () => this.sendPasswordReset());
+        document.getElementById('force-change-password-btn').addEventListener('click', () => this.forceChangePassword());
 
         // Navigation
         document.querySelectorAll('.nav-btn').forEach(btn => {
@@ -72,6 +79,39 @@ class WorkoutTracker {
 
         // History filter
         document.getElementById('history-filter').addEventListener('change', (e) => this.loadHistory(e.target.value));
+
+        // Settings - Add null checks to prevent errors
+        const changePasswordBtn = document.getElementById('change-password-btn');
+        const logoutSettingsBtn = document.getElementById('logout-settings-btn');
+        
+        if (changePasswordBtn) {
+            changePasswordBtn.addEventListener('click', () => this.changePassword());
+        }
+        if (logoutSettingsBtn) {
+            logoutSettingsBtn.addEventListener('click', () => this.logout());
+        }
+        
+        // Admin events
+        const addUserBtn = document.getElementById('add-user-btn');
+        if (addUserBtn) {
+            addUserBtn.addEventListener('click', () => this.showUserModal());
+        }
+        
+        // User management modal events
+        const closeUserModalBtn = document.getElementById('close-user-modal-btn');
+        const saveUserBtn = document.getElementById('save-user-btn');
+        const cancelUserBtn = document.getElementById('cancel-user-btn');
+        
+        if (closeUserModalBtn) closeUserModalBtn.addEventListener('click', () => this.hideUserModal());
+        if (saveUserBtn) saveUserBtn.addEventListener('click', () => this.saveUser());
+        if (cancelUserBtn) cancelUserBtn.addEventListener('click', () => this.hideUserModal());
+        
+        // Password reset modal events (for URL tokens)
+        const closeResetModalBtn = document.getElementById('close-reset-modal-btn');
+        const completeResetBtn = document.getElementById('complete-reset-btn');
+        
+        if (closeResetModalBtn) closeResetModalBtn.addEventListener('click', () => this.hideResetModal());
+        if (completeResetBtn) completeResetBtn.addEventListener('click', () => this.completePasswordReset());
 
         // Enter key handlers
         document.getElementById('password').addEventListener('keypress', (e) => {
@@ -108,6 +148,9 @@ class WorkoutTracker {
 
     // Authentication
     async checkAuthentication() {
+        // Check for password reset token first
+        this.checkForPasswordResetToken();
+        
         if (this.token) {
             try {
                 // Try to fetch templates to verify token
@@ -116,6 +159,9 @@ class WorkoutTracker {
                 this.loadTemplates();
             } catch (error) {
                 this.token = null;
+                this.currentUser = null;
+                this.userRole = null;
+                this.mustChangePassword = false;
                 localStorage.removeItem('token');
                 this.showAuthScreen();
             }
@@ -138,10 +184,17 @@ class WorkoutTracker {
             const response = await this.apiCall('POST', '/auth/login', { username, password });
             this.token = response.access_token;
             this.currentUser = response.user_id;
+            this.userRole = response.role;
+            this.mustChangePassword = response.must_change_password;
             localStorage.setItem('token', this.token);
             
-            this.showMainScreen();
-            this.loadTemplates();
+            if (this.mustChangePassword) {
+                this.showForcePasswordChange();
+                await this.loadPasswordPolicy('force-password-requirements');
+            } else {
+                this.showMainScreen();
+                this.loadTemplates();
+            }
         } catch (error) {
             alert('Login failed: ' + error.message);
         }
@@ -152,8 +205,119 @@ class WorkoutTracker {
     logout() {
         this.token = null;
         this.currentUser = null;
+        this.userRole = null;
+        this.mustChangePassword = false;
         localStorage.removeItem('token');
         this.showAuthScreen();
+    }
+
+    // Authentication UI Methods
+    showLoginForm() {
+        document.querySelectorAll('#auth-screen > div').forEach(div => div.classList.add('hidden'));
+        document.querySelector('#auth-screen > div:first-child').classList.remove('hidden');
+    }
+
+    showForgotPassword() {
+        document.querySelectorAll('#auth-screen > div').forEach(div => div.classList.add('hidden'));
+        document.getElementById('forgot-password-form').classList.remove('hidden');
+    }
+
+    showForcePasswordChange() {
+        document.querySelectorAll('#auth-screen > div').forEach(div => div.classList.add('hidden'));
+        document.getElementById('force-password-change').classList.remove('hidden');
+    }
+
+    async sendPasswordReset() {
+        const email = document.getElementById('reset-email').value;
+        if (!email) {
+            alert('Please enter your email address');
+            return;
+        }
+
+        try {
+            await this.apiCall('POST', '/auth/forgot-password', { email });
+            alert('If an account with that email exists, a password reset link has been sent');
+            this.showLoginForm();
+        } catch (error) {
+            alert('Error sending reset email: ' + error.message);
+        }
+    }
+
+    async forceChangePassword() {
+        const currentPassword = document.getElementById('force-current-password').value;
+        const newPassword = document.getElementById('force-new-password').value;
+        const confirmPassword = document.getElementById('force-confirm-password').value;
+
+        if (!currentPassword || !newPassword || !confirmPassword) {
+            alert('Please fill in all fields');
+            return;
+        }
+
+        if (newPassword !== confirmPassword) {
+            alert('New passwords do not match');
+            return;
+        }
+
+        try {
+            await this.apiCall('PUT', '/auth/change-password', {
+                current_password: currentPassword,
+                new_password: newPassword
+            });
+            alert('Password changed successfully');
+            this.mustChangePassword = false;
+            this.showMainScreen();
+            this.loadTemplates();
+        } catch (error) {
+            alert('Failed to change password: ' + error.message);
+        }
+    }
+
+    // Password reset from URL token
+    checkForPasswordResetToken() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+        if (token) {
+            this.showResetPasswordModal(token);
+        }
+    }
+
+    showResetPasswordModal(token) {
+        this.resetToken = token;
+        document.getElementById('reset-password-modal').classList.remove('hidden');
+        this.loadPasswordPolicy('reset-password-requirements');
+    }
+
+    hideResetModal() {
+        document.getElementById('reset-password-modal').classList.add('hidden');
+        // Clear URL parameters
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    async completePasswordReset() {
+        const newPassword = document.getElementById('reset-new-password').value;
+        const confirmPassword = document.getElementById('reset-confirm-password').value;
+
+        if (!newPassword || !confirmPassword) {
+            alert('Please fill in all fields');
+            return;
+        }
+
+        if (newPassword !== confirmPassword) {
+            alert('Passwords do not match');
+            return;
+        }
+
+        try {
+            await this.apiCall('POST', '/auth/reset-password', {
+                token: this.resetToken,
+                password: newPassword
+            });
+            alert('Password reset successfully. You can now login with your new password.');
+            this.hideResetModal();
+            this.showLoginForm();
+        } catch (error) {
+            alert('Failed to reset password: ' + error.message);
+        }
     }
 
     // Screen Management
@@ -177,10 +341,13 @@ class WorkoutTracker {
     showMainScreen() {
         document.getElementById('auth-screen').classList.add('hidden');
         document.getElementById('main-screen').classList.remove('hidden');
+        this.switchTab('workout'); // Default to workout tab
     }
 
     // Navigation
     switchTab(tabName) {
+        console.log('Switching to tab:', tabName); // Debug log
+        
         // Update nav buttons
         document.querySelectorAll('.nav-btn').forEach(btn => {
             btn.classList.remove('border-blue-500', 'text-blue-600');
@@ -202,6 +369,10 @@ class WorkoutTracker {
             this.loadWorkoutTemplates();
         } else if (tabName === 'history') {
             this.loadHistory();
+        } else if (tabName === 'settings') {
+            console.log('Loading settings tab'); // Debug log
+            this.loadPasswordPolicy();
+            this.loadSettings();
         }
     }
 
@@ -241,6 +412,12 @@ class WorkoutTracker {
             throw new Error(error.error || 'Request failed');
         }
 
+        // Handle empty responses (204 No Content)
+        const contentType = response.headers.get('content-type');
+        if (response.status === 204 || !contentType || !contentType.includes('application/json')) {
+            return null;
+        }
+        
         return response.json();
     }
 
@@ -695,6 +872,237 @@ class WorkoutTracker {
             this.loadHistory();
         } catch (error) {
             alert('Failed to delete session: ' + error.message);
+        }
+    }
+
+    // Password Management
+    async loadPasswordPolicy(containerId = 'password-requirements') {
+        console.log('Loading password policy...'); // Debug log
+        try {
+            const response = await this.apiCall('GET', '/auth/password-policy');
+            this.displayPasswordRequirements(response.requirements, containerId);
+        } catch (error) {
+            console.error('Failed to load password policy:', error);
+            // Show default requirements if API fails
+            const defaultRequirements = [
+                'At least 6 characters',
+                'Cannot be a common password'
+            ];
+            this.displayPasswordRequirements(defaultRequirements, containerId);
+        }
+    }
+
+    displayPasswordRequirements(requirements, containerId = 'password-requirements') {
+        const container = document.getElementById(containerId);
+        if (container) {
+            container.innerHTML = `
+                <div class="mb-2"><strong>Password Requirements:</strong></div>
+                <ul class="list-disc list-inside space-y-1">
+                    ${requirements.map(req => `<li>${req}</li>`).join('')}
+                </ul>
+            `;
+        }
+    }
+
+    // Settings Management
+    async loadSettings() {
+        // Show/hide admin section based on role
+        const adminSection = document.getElementById('admin-section');
+        if (this.userRole === 'admin') {
+            adminSection.classList.remove('hidden');
+            this.loadUsers();
+        } else {
+            adminSection.classList.add('hidden');
+        }
+    }
+
+    // Admin User Management
+    async loadUsers() {
+        try {
+            const users = await this.apiCall('GET', '/admin/users');
+            this.displayUsers(users);
+        } catch (error) {
+            console.error('Failed to load users:', error);
+        }
+    }
+
+    displayUsers(users) {
+        const container = document.getElementById('users-list');
+        container.innerHTML = users.map(user => `
+            <div class="bg-white border rounded-lg p-3">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="font-medium">${user.username}</div>
+                        <div class="text-sm text-gray-600">${user.email || 'No email'}</div>
+                        <div class="text-xs text-gray-500">
+                            ${user.role === 'admin' ? '👑 Admin' : '👤 User'}
+                            ${user.must_change_password ? ' • 🔄 Must change password' : ''}
+                        </div>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button onclick="app.editUser(${user.id})" class="text-blue-500 text-sm hover:text-blue-600">
+                            Edit
+                        </button>
+                        <button onclick="app.resetUserPassword(${user.id})" class="text-orange-500 text-sm hover:text-orange-600">
+                            Reset
+                        </button>
+                        ${user.id !== this.currentUser ? `
+                            <button onclick="app.deleteUser(${user.id})" class="text-red-500 text-sm hover:text-red-600">
+                                Delete
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    showUserModal(userId = null) {
+        this.editingUserId = userId;
+        const modal = document.getElementById('user-modal');
+        const title = document.getElementById('user-modal-title');
+        const passwordSection = document.getElementById('password-section');
+
+        if (userId) {
+            title.textContent = 'Edit User';
+            passwordSection.style.display = 'none';
+            this.loadUserForEdit(userId);
+        } else {
+            title.textContent = 'Add User';
+            passwordSection.style.display = 'block';
+            // Clear form
+            document.getElementById('user-username').value = '';
+            document.getElementById('user-email').value = '';
+            document.getElementById('user-role').value = 'user';
+            document.getElementById('user-password').value = '';
+        }
+
+        modal.classList.remove('hidden');
+    }
+
+    hideUserModal() {
+        document.getElementById('user-modal').classList.add('hidden');
+        this.editingUserId = null;
+    }
+
+    async loadUserForEdit(userId) {
+        try {
+            const users = await this.apiCall('GET', '/admin/users');
+            const user = users.find(u => u.id === userId);
+            if (user) {
+                document.getElementById('user-username').value = user.username;
+                document.getElementById('user-email').value = user.email || '';
+                document.getElementById('user-role').value = user.role;
+            }
+        } catch (error) {
+            console.error('Failed to load user for edit:', error);
+        }
+    }
+
+    async saveUser() {
+        const username = document.getElementById('user-username').value;
+        const email = document.getElementById('user-email').value;
+        const role = document.getElementById('user-role').value;
+        const password = document.getElementById('user-password').value;
+
+        if (!username || !email) {
+            alert('Username and email are required');
+            return;
+        }
+
+        if (!this.editingUserId && !password) {
+            alert('Password is required for new users');
+            return;
+        }
+
+        try {
+            if (this.editingUserId) {
+                // Update existing user
+                await this.apiCall('PUT', `/admin/users/${this.editingUserId}`, {
+                    username, email, role
+                });
+                alert('User updated successfully');
+            } else {
+                // Create new user
+                await this.apiCall('POST', '/admin/users', {
+                    username, email, role, password
+                });
+                alert('User created successfully');
+            }
+            
+            this.hideUserModal();
+            this.loadUsers();
+        } catch (error) {
+            alert('Failed to save user: ' + error.message);
+        }
+    }
+
+    async editUser(userId) {
+        this.showUserModal(userId);
+    }
+
+    async deleteUser(userId) {
+        if (confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+            try {
+                await this.apiCall('DELETE', `/admin/users/${userId}`);
+                alert('User deleted successfully');
+                this.loadUsers();
+            } catch (error) {
+                alert('Failed to delete user: ' + error.message);
+            }
+        }
+    }
+
+    async resetUserPassword(userId) {
+        const newPassword = prompt('Enter new temporary password for user:');
+        if (newPassword) {
+            try {
+                await this.apiCall('POST', `/admin/users/${userId}/reset-password`, {
+                    password: newPassword
+                });
+                alert('Password reset successfully. User will be required to change it on next login.');
+                this.loadUsers();
+            } catch (error) {
+                alert('Failed to reset password: ' + error.message);
+            }
+        }
+    }
+
+    async changePassword() {
+        const currentPassword = document.getElementById('current-password').value;
+        const newPassword = document.getElementById('new-password').value;
+        const confirmPassword = document.getElementById('confirm-password').value;
+
+        // Client-side validation
+        if (!currentPassword || !newPassword || !confirmPassword) {
+            alert('Please fill in all password fields');
+            return;
+        }
+
+        if (newPassword !== confirmPassword) {
+            alert('New passwords do not match');
+            return;
+        }
+
+        if (currentPassword === newPassword) {
+            alert('New password must be different from current password');
+            return;
+        }
+
+        try {
+            await this.apiCall('PUT', '/auth/change-password', {
+                current_password: currentPassword,
+                new_password: newPassword
+            });
+
+            // Clear form
+            document.getElementById('current-password').value = '';
+            document.getElementById('new-password').value = '';
+            document.getElementById('confirm-password').value = '';
+
+            alert('Password changed successfully!');
+        } catch (error) {
+            alert('Failed to change password: ' + error.message);
         }
     }
 }

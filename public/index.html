@@ -48,7 +48,67 @@
                 <button id="login-btn" class="w-full bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600 transition-colors">
                     Login
                 </button>
+                
+                <div class="text-center mt-4">
+                    <button id="forgot-password-btn" class="text-sm text-blue-500 hover:text-blue-600">
+                        Forgot your password?
+                    </button>
+                </div>
 
+            </div>
+            
+            <!-- Forgot Password Form -->
+            <div id="forgot-password-form" class="hidden space-y-4">
+                <div class="text-center mb-4">
+                    <h2 class="text-xl font-semibold text-gray-800">Reset Password</h2>
+                    <p class="text-sm text-gray-600">Enter your email address and we'll send you a reset link</p>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                    <input type="email" id="reset-email" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500" placeholder="Enter your email">
+                </div>
+                
+                <button id="send-reset-btn" class="w-full bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600 transition-colors">
+                    Send Reset Link
+                </button>
+                
+                <div class="text-center">
+                    <button id="back-to-login-btn" class="text-sm text-gray-500 hover:text-gray-700">
+                        Back to Login
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Force Password Change Form -->
+            <div id="force-password-change" class="hidden space-y-4">
+                <div class="text-center mb-4">
+                    <h2 class="text-xl font-semibold text-gray-800">Password Change Required</h2>
+                    <p class="text-sm text-gray-600">You must change your password before continuing</p>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+                    <input type="password" id="force-current-password" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500" placeholder="Enter current password">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                    <input type="password" id="force-new-password" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500" placeholder="Enter new password">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+                    <input type="password" id="force-confirm-password" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500" placeholder="Confirm new password">
+                </div>
+                
+                <div id="force-password-requirements" class="text-xs text-gray-600 bg-blue-50 p-2 rounded">
+                    <!-- Password requirements will be loaded here -->
+                </div>
+                
+                <button id="force-change-password-btn" class="w-full bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600 transition-colors">
+                    Change Password
+                </button>
             </div>
         </div>
 
@@ -67,14 +127,17 @@
             <!-- Navigation -->
             <nav class="bg-white border-b border-gray-200">
                 <div class="flex">
-                    <button class="nav-btn flex-1 py-3 text-center font-medium border-b-2 border-blue-500 text-blue-600" data-tab="templates">
-                        Templates
+                    <button class="nav-btn flex-1 py-2 px-1 text-center font-medium border-b-2 border-transparent text-gray-500 text-xs" data-tab="templates">
+                        📋<br>Templates
                     </button>
-                    <button class="nav-btn flex-1 py-3 text-center font-medium border-b-2 border-transparent text-gray-500" data-tab="workout">
-                        Workout
+                    <button class="nav-btn flex-1 py-2 px-1 text-center font-medium border-b-2 border-transparent text-gray-500 text-xs" data-tab="workout">
+                        💪<br>Workout
                     </button>
-                    <button class="nav-btn flex-1 py-3 text-center font-medium border-b-2 border-transparent text-gray-500" data-tab="history">
-                        History
+                    <button class="nav-btn flex-1 py-2 px-1 text-center font-medium border-b-2 border-transparent text-gray-500 text-xs" data-tab="history">
+                        📊<br>History
+                    </button>
+                    <button class="nav-btn flex-1 py-2 px-1 text-center font-medium border-b-2 border-blue-500 text-blue-600 text-xs" data-tab="settings">
+                        ⚙️<br>Settings
                     </button>
                 </div>
             </nav>
@@ -82,7 +145,7 @@
             <!-- Content Area -->
             <div id="content" class="p-4 pb-20">
                 <!-- Templates Tab -->
-                <div id="templates-tab" class="tab-content">
+                <div id="templates-tab" class="tab-content hidden">
                     <div class="flex items-center justify-between mb-4">
                         <h2 class="text-lg font-semibold">Your Templates</h2>
                         <button id="add-template-btn" class="bg-blue-500 text-white px-4 py-2 rounded text-sm hover:bg-blue-600">
@@ -139,6 +202,58 @@
                         <!-- Sessions will be loaded here -->
                     </div>
                 </div>
+
+                <!-- Settings Tab -->
+                <div id="settings-tab" class="tab-content">
+
+                    <h2 class="text-lg font-semibold mb-4">⚙️ Settings</h2>
+                    
+                    <!-- Password Change Section -->
+                    <div class="bg-gray-50 rounded-lg p-4 mb-4">
+                        <h3 class="text-md font-medium mb-3">Change Password</h3>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+                                <input type="password" id="current-password" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500" placeholder="Enter current password">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                                <input type="password" id="new-password" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500" placeholder="Enter new password">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+                                <input type="password" id="confirm-password" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500" placeholder="Confirm new password">
+                            </div>
+                            <div id="password-requirements" class="text-xs text-gray-600 bg-blue-50 p-2 rounded">
+                                <!-- Password requirements will be loaded here -->
+                            </div>
+                            <button id="change-password-btn" class="w-full bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600 transition-colors">
+                                Change Password
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Admin Section (Only for admins) -->
+                    <div id="admin-section" class="bg-gray-50 rounded-lg p-4 mb-4 hidden">
+                        <h3 class="text-md font-medium mb-3">👑 User Management</h3>
+                        <div class="space-y-3">
+                            <button id="add-user-btn" class="w-full bg-green-500 text-white py-2 rounded-md hover:bg-green-600 transition-colors">
+                                Add New User
+                            </button>
+                            <div id="users-list" class="space-y-2">
+                                <!-- Users will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Account Section -->
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <h3 class="text-md font-medium mb-3">Account</h3>
+                        <button id="logout-settings-btn" class="w-full bg-red-500 text-white py-2 rounded-md hover:bg-red-600 transition-colors">
+                            Logout
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -177,6 +292,91 @@
                     </button>
                     <button id="cancel-template-btn" class="px-6 bg-gray-500 text-white py-2 rounded-md hover:bg-gray-600">
                         Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Management Modal -->
+    <div id="user-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+        <div class="fixed bottom-0 left-0 right-0 bg-white rounded-t-lg p-6 max-h-[80vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold" id="user-modal-title">Add User</h3>
+                <button id="close-user-modal-btn" class="text-gray-500 hover:text-gray-700">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                    <input type="text" id="user-username" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="Enter username">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <input type="email" id="user-email" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="Enter email">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                    <select id="user-role" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                        <option value="user">User</option>
+                        <option value="admin">Administrator</option>
+                    </select>
+                </div>
+
+                <div id="password-section">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Temporary Password</label>
+                    <input type="password" id="user-password" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="Enter temporary password">
+                    <p class="text-xs text-gray-500 mt-1">User will be required to change this on first login</p>
+                </div>
+
+                <div class="flex space-x-3 pt-4">
+                    <button id="save-user-btn" class="flex-1 bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600">
+                        Save User
+                    </button>
+                    <button id="cancel-user-btn" class="px-6 bg-gray-500 text-white py-2 rounded-md hover:bg-gray-600">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Password Reset Modal (for users via query param) -->
+    <div id="reset-password-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+        <div class="fixed bottom-0 left-0 right-0 bg-white rounded-t-lg p-6 max-h-[80vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold">Reset Your Password</h3>
+                <button id="close-reset-modal-btn" class="text-gray-500 hover:text-gray-700">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                    <input type="password" id="reset-new-password" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="Enter new password">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+                    <input type="password" id="reset-confirm-password" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="Confirm new password">
+                </div>
+
+                <div id="reset-password-requirements" class="text-xs text-gray-600 bg-blue-50 p-2 rounded">
+                    <!-- Password requirements will be loaded here -->
+                </div>
+
+                <div class="flex space-x-3 pt-4">
+                    <button id="complete-reset-btn" class="flex-1 bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600">
+                        Reset Password
                     </button>
                 </div>
             </div>

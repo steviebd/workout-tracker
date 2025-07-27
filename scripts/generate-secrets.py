@@ -7,6 +7,7 @@ Generates secure secrets and validates configuration.
 import secrets
 import os
 import sys
+import string
 
 def generate_secret_key(length=32):
     """Generate a cryptographically secure secret key."""
@@ -20,6 +21,71 @@ def validate_domain(domain):
         print(f"⚠️  Warning: HTTP domain detected: {domain}")
         print("   Consider using HTTPS for production")
     return True
+
+def generate_admin_password():
+    """Generate a secure temporary password for admin (Docker-safe)."""
+    # Use only letters and numbers for maximum compatibility
+    # Add one @ symbol to meet special character requirement
+    alphabet = string.ascii_letters + string.digits
+    password = ''.join(secrets.choice(alphabet) for i in range(11))
+    password = 'A' + password[1:] if not any(c.isupper() for c in password) else password
+    password = 'a' + password[1:] if not any(c.islower() for c in password) else password
+    password = '1' + password[1:] if not any(c.isdigit() for c in password) else password
+    password = password + '@'  # Add @ at the end to meet special char requirement
+    return password
+
+def get_email_config(env_type, cors_origins):
+    """Get email configuration for password reset functionality."""
+    print("\n📧 Email Configuration (for password reset):")
+    print("Configure SMTP settings for password reset emails")
+    
+    setup_email = input("Setup email configuration? (Y/n): ").strip().lower()
+    if setup_email == 'n':
+        return {}
+    
+    print("\nChoose email provider:")
+    print("1. Gmail")
+    print("2. SendGrid") 
+    print("3. Custom SMTP")
+    print("4. Local SMTP (testing only)")
+    
+    choice = input("Select option (1-4): ").strip()
+    
+    email_config = {}
+    
+    if choice == '1':  # Gmail
+        email_config['SMTP_SERVER'] = 'smtp.gmail.com'
+        email_config['SMTP_PORT'] = '587'
+        email_config['SMTP_USE_TLS'] = 'true'
+        email_config['SMTP_USERNAME'] = input("Gmail address: ").strip()
+        email_config['SMTP_PASSWORD'] = input("Gmail app password: ").strip()
+    elif choice == '2':  # SendGrid
+        email_config['SMTP_SERVER'] = 'smtp.sendgrid.net'
+        email_config['SMTP_PORT'] = '587'
+        email_config['SMTP_USE_TLS'] = 'true'
+        email_config['SMTP_USERNAME'] = 'apikey'
+        email_config['SMTP_PASSWORD'] = input("SendGrid API key: ").strip()
+    elif choice == '3':  # Custom
+        email_config['SMTP_SERVER'] = input("SMTP server: ").strip()
+        email_config['SMTP_PORT'] = input("SMTP port (587): ").strip() or '587'
+        email_config['SMTP_USE_TLS'] = 'true' if input("Use TLS? (Y/n): ").strip().lower() != 'n' else 'false'
+        email_config['SMTP_USERNAME'] = input("SMTP username: ").strip()
+        email_config['SMTP_PASSWORD'] = input("SMTP password: ").strip()
+    else:  # Local SMTP
+        email_config['SMTP_SERVER'] = 'localhost'
+        email_config['SMTP_PORT'] = '25'
+        email_config['SMTP_USE_TLS'] = 'false'
+        print("Using local SMTP (no authentication)")
+    
+    # Common email settings
+    try:
+        default_from = f"noreply@{cors_origins.split('://')[-1].split(',')[0].split('/')[0]}"
+    except:
+        default_from = "noreply@workout-tracker.local"
+    from_email_input = input(f"From email [{default_from}]: ").strip()
+    email_config['FROM_EMAIL'] = from_email_input if from_email_input else default_from
+    
+    return email_config
 
 def main():
     print("🔐 Workout Tracker Security Configuration Generator")
@@ -50,17 +116,18 @@ def main():
         cors_origins = "http://localhost:8080"
         print(f"Using default: {cors_origins}")
     
-    # JWT expiry
-    print("\n⏰ JWT Token Configuration:")
-    jwt_minutes = input("JWT expiry in minutes (default: 15): ").strip()
-    if not jwt_minutes:
-        jwt_minutes = "15"
-    
     # Environment type
     print("\n🏭 Environment Configuration:")
     env_type = input("Environment type (development/production) [production]: ").strip()
     if not env_type:
         env_type = "production"
+    
+    # JWT expiry
+    print("\n⏰ JWT Token Configuration:")
+    jwt_minutes = input("JWT expiry in minutes (default: 15): ").strip()
+    if not jwt_minutes:
+        jwt_minutes = "15"
+   
     
     # Rate limiting configuration
     print("\n🚦 Rate Limiting Configuration:")
@@ -85,7 +152,7 @@ def main():
         rate_limit_default = input("General API limits: ").strip() or "1000 per hour, 100 per minute"
         rate_limit_login = input("Login endpoint limit: ").strip() or "5 per minute"
         rate_limit_register = input("Register endpoint limit: ").strip() or "3 per minute"
-    
+
     # Generate .env file
     env_content = f"""# Workout Tracker Environment Configuration
 # Generated on {os.popen('date').read().strip()}
@@ -99,17 +166,26 @@ JWT_SECRET_KEY={jwt_secret}
 JWT_EXPIRES_MINUTES={jwt_minutes}
 
 # Database Configuration
-DATABASE_PATH={"workout.db" if env_type == "development" else "/opt/workout-tracker/data/workout.db"}
+DATABASE_PATH=workout.db
 
 # CORS Configuration
 CORS_ORIGINS={cors_origins}
 CORS_SUPPORTS_CREDENTIALS=false
 
 # Rate Limiting Configuration
-RATE_LIMIT_DEFAULT={rate_limit_default}
-RATE_LIMIT_AUTH_LOGIN={rate_limit_login}
-RATE_LIMIT_AUTH_REGISTER={rate_limit_register}
+RATE_LIMIT_DEFAULT="{rate_limit_default}"
+RATE_LIMIT_AUTH_LOGIN="{rate_limit_login}"
+RATE_LIMIT_AUTH_REGISTER="{rate_limit_register}"
 RATE_LIMIT_STORAGE_URI=memory://
+
+# Password Policy Configuration
+PASSWORD_MIN_LENGTH={password_policy['min_length']}
+PASSWORD_MAX_LENGTH={password_policy['max_length']}
+PASSWORD_REQUIRE_UPPERCASE={password_policy['require_uppercase']}
+PASSWORD_REQUIRE_LOWERCASE={password_policy['require_lowercase']}
+PASSWORD_REQUIRE_NUMBERS={password_policy['require_numbers']}
+PASSWORD_REQUIRE_SPECIAL={password_policy['require_special']}
+PASSWORD_BLOCK_COMMON={password_policy['block_common']}
 
 # Flask Environment
 FLASK_ENV={env_type}
@@ -119,26 +195,36 @@ PORT=8080
 
 # Skip secret validation in development only
 SKIP_SECRET_VALIDATION={"true" if env_type == "development" else "false"}
+
+# Admin User Configuration (for seed.py reference)
+ADMIN_TEMP_PASSWORD={admin_password}
+
+# Application URL (used for password reset emails)
+APP_URL={cors_origins.split(',')[0]}
 """
+
+    # Add email configuration if provided
+    if email_config:
+        env_content += "\n# Email Configuration (SMTP)\n"
+        for key, value in email_config.items():
+            env_content += f"{key}={value}\n"
     
     print("\n📝 Generated .env configuration:")
     print("-" * 40)
     print(env_content)
     print("-" * 40)
     
-    # Save to file
-    save_file = input("\nSave to .env file? (y/N): ").strip().lower()
-    if save_file == 'y':
-        # Save to root directory for Docker Compose
-        env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
-        with open(env_path, 'w') as f:
-            f.write(env_content)
-        print(f"✅ Configuration saved to {env_path}")
         print("⚠️  Remember to:")
         print("   1. Review the configuration")
-        print("   2. Update your domain in CORS_ORIGINS")
+        print("   2. Update your domain in CORS_ORIGINS if needed")
         print("   3. Never commit .env to git")
-        print("   4. Set appropriate file permissions: chmod 600 .env")
+        print("   4. Test the admin login with the credentials above")
+        if email_config:
+            print("   5. Test email functionality with password reset")
+        
+        # Docker ready message
+        print(f"\n🐳 Ready for Docker Compose!")
+        print("Start with: docker-compose up -d")
     
     # Docker environment
     print("\n🐳 For Docker deployment, set these environment variables:")

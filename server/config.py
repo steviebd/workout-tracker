@@ -46,6 +46,15 @@ class Config:
     RATE_LIMIT_AUTH_REGISTER = os.environ.get('RATE_LIMIT_AUTH_REGISTER', '3 per minute')
     RATE_LIMIT_STORAGE_URI = os.environ.get('RATE_LIMIT_STORAGE_URI', 'memory://')
     
+    # Password Policy Configuration
+    PASSWORD_MIN_LENGTH = int(os.environ.get('PASSWORD_MIN_LENGTH', 8))
+    PASSWORD_MAX_LENGTH = int(os.environ.get('PASSWORD_MAX_LENGTH', 128))
+    PASSWORD_REQUIRE_UPPERCASE = os.environ.get('PASSWORD_REQUIRE_UPPERCASE', 'true').lower() == 'true'
+    PASSWORD_REQUIRE_LOWERCASE = os.environ.get('PASSWORD_REQUIRE_LOWERCASE', 'true').lower() == 'true'
+    PASSWORD_REQUIRE_NUMBERS = os.environ.get('PASSWORD_REQUIRE_NUMBERS', 'true').lower() == 'true'
+    PASSWORD_REQUIRE_SPECIAL = os.environ.get('PASSWORD_REQUIRE_SPECIAL', 'true').lower() == 'true'
+    PASSWORD_BLOCK_COMMON = os.environ.get('PASSWORD_BLOCK_COMMON', 'true').lower() == 'true'
+    
 class DevelopmentConfig(Config):
     """Development configuration."""
     def __init__(self):
@@ -64,6 +73,14 @@ class DevelopmentConfig(Config):
     RATE_LIMIT_DEFAULT = os.environ.get('RATE_LIMIT_DEFAULT', '2000 per hour, 200 per minute')
     RATE_LIMIT_AUTH_LOGIN = os.environ.get('RATE_LIMIT_AUTH_LOGIN', '10 per minute')
     RATE_LIMIT_AUTH_REGISTER = os.environ.get('RATE_LIMIT_AUTH_REGISTER', '5 per minute')
+    
+    # Development password policy - more lenient
+    PASSWORD_MIN_LENGTH = int(os.environ.get('PASSWORD_MIN_LENGTH', 6))
+    PASSWORD_REQUIRE_UPPERCASE = os.environ.get('PASSWORD_REQUIRE_UPPERCASE', 'false').lower() == 'true'
+    PASSWORD_REQUIRE_LOWERCASE = os.environ.get('PASSWORD_REQUIRE_LOWERCASE', 'false').lower() == 'true'
+    PASSWORD_REQUIRE_NUMBERS = os.environ.get('PASSWORD_REQUIRE_NUMBERS', 'false').lower() == 'true'
+    PASSWORD_REQUIRE_SPECIAL = os.environ.get('PASSWORD_REQUIRE_SPECIAL', 'false').lower() == 'true'
+    PASSWORD_BLOCK_COMMON = os.environ.get('PASSWORD_BLOCK_COMMON', 'true').lower() == 'true'
 
 class ProductionConfig(Config):
     """Production configuration."""

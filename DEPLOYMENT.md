@@ -1,18 +1,46 @@
-# 🏋️ Workout Tracker PWA - Production Deployment Guide
+# Deployment Guide - Workout Tracker PWA
 
-This guide covers deploying the Workout Tracker PWA in production using LXC containers on Proxmox.
+Complete production deployment guide for LXC containers on Proxmox, Docker, and traditional VPS setups.
 
 ## Table of Contents
 
-1. [Security Setup](#security-setup)
-2. [LXC Container Setup on Proxmox](#lxc-container-setup-on-proxmox)
-3. [Application Installation](#application-installation)
-4. [SSL/HTTPS Setup](#ssl-https-setup)
-5. [Monitoring and Maintenance](#monitoring-and-maintenance)
-6. [Backup and Recovery](#backup-and-recovery)
-7. [Docker Deployment (Alternative)](#docker-deployment-alternative)
+1. [Quick Start](#quick-start)
+2. [Security Configuration](#security-configuration)
+3. [LXC Container Setup on Proxmox](#lxc-container-setup-on-proxmox)
+4. [Docker Deployment](#docker-deployment)
+5. [Traditional VPS Deployment](#traditional-vps-deployment)
+6. [SSL/HTTPS Setup](#ssl-https-setup)
+7. [Monitoring and Maintenance](#monitoring-and-maintenance)
+8. [Backup and Recovery](#backup-and-recovery)
 
-## Security Setup
+## Quick Start
+
+### Automated Setup (Recommended)
+```bash
+# 1. Generate secure configuration
+python3 scripts/generate-secrets.py
+
+# 2. Deploy with Docker
+docker-compose up -d
+
+# 3. Access your application
+# Check logs: docker-compose logs -f
+# Admin credentials displayed during first startup
+```
+
+### Manual Setup
+```bash
+# 1. Set required environment variables
+export SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))")
+export JWT_SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))")
+export CORS_ORIGINS="https://yourdomain.com"
+export FLASK_ENV="production"
+
+# 2. Initialize and start
+cd server && python seed.py && python app.py
+```
+
+## Security Configuration
 
 ### 🚨 Critical Security Updates
 
@@ -387,8 +415,9 @@ This script will:
    # Edit .env with your values
    nano .env
    
-   # Initialize database
+   # Initialize database with admin user
    cd server && python seed.py && cd ..
+    # The script will output admin credentials - save them securely!
    
    # Set permissions
    chown -R workout-tracker:workout-tracker /opt/workout-tracker
@@ -546,42 +575,158 @@ chown workout-tracker:workout-tracker /opt/workout-tracker/data/workout.db
 systemctl start workout-tracker nginx
 ```
 
-## Docker Deployment (Alternative)
-
-If you prefer Docker deployment:
+## Docker Deployment
 
 ### 1. Install Docker
-
 ```bash
 curl -fsSL https://get.docker.com -o get-docker.sh
 sh get-docker.sh
 ```
 
-### 2. Deploy with Docker Compose
-
+### 2. Automated Docker Setup
 ```bash
-# Clone repository
-git clone https://github.com/your-repo/workout-tracker.git
-cd workout-tracker
+# Generate configuration automatically
+python3 scripts/generate-secrets.py
 
-# Set environment variables with security
+# Deploy
+docker-compose up -d
+
+# Monitor
+docker-compose logs -f
+```
+
+### 3. Manual Docker Setup
+```bash
+# Create environment file
 cat > .env << EOF
 SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))")
 JWT_SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))")
 CORS_ORIGINS=https://yourdomain.com
 JWT_EXPIRES_MINUTES=15
 CORS_SUPPORTS_CREDENTIALS=false
+FLASK_ENV=production
 EOF
 
-# Secure the file
 chmod 600 .env
-
-# Start services
 docker-compose up -d
+```
 
-# Check status
-docker-compose ps
-docker-compose logs -f
+## Traditional VPS Deployment
+
+### Ubuntu/Debian Server
+```bash
+# Install dependencies
+sudo apt update && sudo apt install -y python3 python3-pip python3-venv nginx sqlite3
+
+# Create application user
+sudo useradd --system --home-dir /opt/workout-tracker --create-home workout-tracker
+
+# Install application
+sudo -u workout-tracker git clone https://github.com/your-repo/workout-tracker.git /opt/workout-tracker
+cd /opt/workout-tracker
+
+# Run installation script
+sudo ./deployment/scripts/install.sh
+```
+
+### CentOS/RHEL
+```bash
+# Install dependencies
+sudo yum install -y python3 python3-pip nginx sqlite
+
+# Follow Ubuntu steps above
+```
+
+## Role-Based Authentication System
+
+The Workout Tracker now includes a comprehensive role-based authentication system with the following features:
+
+### 👑 Administrator Capabilities
+
+Administrators can:
+- Create, edit, and delete user accounts
+- Assign roles (Administrator or User)
+- Reset user passwords
+- Manage all system users through the Settings tab
+
+### 🔐 Security Features
+
+1. **Secure Password Reset**: Users can reset passwords via email with single-use tokens that expire in 1 hour
+2. **Forced Password Changes**: New users and password resets require password changes on first login
+3. **SMTP Email Integration**: Configurable email service for password resets and user notifications
+
+### ⚙️ Email Configuration
+
+For password reset functionality, configure SMTP settings:
+
+```bash
+# Email service configuration
+export SMTP_SERVER="smtp.gmail.com"
+export SMTP_PORT="587"
+export SMTP_USERNAME="your-email@gmail.com"
+export SMTP_PASSWORD="your-app-password"
+export SMTP_USE_TLS="true"
+export FROM_EMAIL="noreply@yourdomain.com"
+export APP_URL="https://yourdomain.com"
+```
+
+### 🚀 Initial Admin Setup
+
+When you run `python seed.py`, the script will:
+
+1. Create an admin user with username: `admin`
+2. Generate a secure temporary password
+3. Display the credentials (save them securely!)
+4. Force the admin to change the password on first login
+
+**Example output:**
+```
+Created admin user with ID: 1
+Admin username: admin
+Admin temporary password: A9x7K3m2P8z!
+IMPORTANT: The admin must change their password on first login!
+```
+
+### 📧 User Management Workflow
+
+1. **Admin creates user**: Admin sets username, email, role, and temporary password
+2. **Email notification**: User receives email with login credentials
+3. **First login**: User must change password before accessing the system
+4. **Password reset**: Users can reset forgotten passwords via email
+
+### 🛡️ Security Best Practices
+
+- **Regular password rotation**: Admins should regularly reset user passwords
+- **Email security**: Use app-specific passwords for email accounts
+- **Role separation**: Only create admin accounts when necessary
+- **Audit trail**: All authentication events are logged for security monitoring
+
+### 🔧 Email Service Setup Examples
+
+#### Gmail Configuration
+```bash
+export SMTP_SERVER="smtp.gmail.com"
+export SMTP_PORT="587"
+export SMTP_USERNAME="admin@yourdomain.com"
+export SMTP_PASSWORD="your-app-specific-password"
+export SMTP_USE_TLS="true"
+```
+
+#### SendGrid Configuration
+```bash
+export SMTP_SERVER="smtp.sendgrid.net"
+export SMTP_PORT="587"
+export SMTP_USERNAME="apikey"
+export SMTP_PASSWORD="your-sendgrid-api-key"
+export SMTP_USE_TLS="true"
+```
+
+#### Local SMTP (for testing)
+```bash
+export SMTP_SERVER="localhost"
+export SMTP_PORT="25"
+export SMTP_USE_TLS="false"
+# No username/password needed for local SMTP
 ```
 
 ## Security Considerations
