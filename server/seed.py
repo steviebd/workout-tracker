@@ -6,7 +6,7 @@ def seed_data():
     init_db()
     
     # Create test user
-    user_id = User.create('testuser', 'password123')
+    user_id = User.create('testuser', 'TestPassword123!')
     if user_id:
         print(f"Created test user with ID: {user_id}")
         

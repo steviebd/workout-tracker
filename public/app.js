@@ -73,6 +73,17 @@ class WorkoutTracker {
         // History filter
         document.getElementById('history-filter').addEventListener('change', (e) => this.loadHistory(e.target.value));
 
+        // Settings - Add null checks to prevent errors
+        const changePasswordBtn = document.getElementById('change-password-btn');
+        const logoutSettingsBtn = document.getElementById('logout-settings-btn');
+        
+        if (changePasswordBtn) {
+            changePasswordBtn.addEventListener('click', () => this.changePassword());
+        }
+        if (logoutSettingsBtn) {
+            logoutSettingsBtn.addEventListener('click', () => this.logout());
+        }
+
         // Enter key handlers
         document.getElementById('password').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') this.login();
@@ -177,10 +188,13 @@ class WorkoutTracker {
     showMainScreen() {
         document.getElementById('auth-screen').classList.add('hidden');
         document.getElementById('main-screen').classList.remove('hidden');
+        this.switchTab('workout'); // Default to workout tab
     }
 
     // Navigation
     switchTab(tabName) {
+        console.log('Switching to tab:', tabName); // Debug log
+        
         // Update nav buttons
         document.querySelectorAll('.nav-btn').forEach(btn => {
             btn.classList.remove('border-blue-500', 'text-blue-600');
@@ -202,6 +216,9 @@ class WorkoutTracker {
             this.loadWorkoutTemplates();
         } else if (tabName === 'history') {
             this.loadHistory();
+        } else if (tabName === 'settings') {
+            console.log('Loading settings tab'); // Debug log
+            this.loadPasswordPolicy();
         }
     }
 
@@ -695,6 +712,71 @@ class WorkoutTracker {
             this.loadHistory();
         } catch (error) {
             alert('Failed to delete session: ' + error.message);
+        }
+    }
+
+    // Password Management
+    async loadPasswordPolicy() {
+        console.log('Loading password policy...'); // Debug log
+        try {
+            const response = await this.apiCall('GET', '/auth/password-policy');
+            this.displayPasswordRequirements(response.requirements);
+        } catch (error) {
+            console.error('Failed to load password policy:', error);
+            // Show default requirements if API fails
+            const defaultRequirements = [
+                'At least 6 characters',
+                'Cannot be a common password'
+            ];
+            this.displayPasswordRequirements(defaultRequirements);
+        }
+    }
+
+    displayPasswordRequirements(requirements) {
+        const container = document.getElementById('password-requirements');
+        container.innerHTML = `
+            <div class="mb-2"><strong>Password Requirements:</strong></div>
+            <ul class="list-disc list-inside space-y-1">
+                ${requirements.map(req => `<li>${req}</li>`).join('')}
+            </ul>
+        `;
+    }
+
+    async changePassword() {
+        const currentPassword = document.getElementById('current-password').value;
+        const newPassword = document.getElementById('new-password').value;
+        const confirmPassword = document.getElementById('confirm-password').value;
+
+        // Client-side validation
+        if (!currentPassword || !newPassword || !confirmPassword) {
+            alert('Please fill in all password fields');
+            return;
+        }
+
+        if (newPassword !== confirmPassword) {
+            alert('New passwords do not match');
+            return;
+        }
+
+        if (currentPassword === newPassword) {
+            alert('New password must be different from current password');
+            return;
+        }
+
+        try {
+            await this.apiCall('PUT', '/auth/change-password', {
+                current_password: currentPassword,
+                new_password: newPassword
+            });
+
+            // Clear form
+            document.getElementById('current-password').value = '';
+            document.getElementById('new-password').value = '';
+            document.getElementById('confirm-password').value = '';
+
+            alert('Password changed successfully!');
+        } catch (error) {
+            alert('Failed to change password: ' + error.message);
         }
     }
 }

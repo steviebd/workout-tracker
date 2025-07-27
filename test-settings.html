@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings Tab Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="max-w-md mx-auto bg-white min-h-screen shadow-lg">
+        <!-- Navigation -->
+        <nav class="bg-white border-b border-gray-200">
+            <div class="flex">
+                <button class="nav-btn flex-1 py-3 px-1 text-center font-medium border-b-2 border-transparent text-gray-500 text-xs" onclick="switchTab('templates')">
+                    📋 Templates
+                </button>
+                <button class="nav-btn flex-1 py-3 px-1 text-center font-medium border-b-2 border-transparent text-gray-500 text-xs" onclick="switchTab('workout')">
+                    💪 Workout
+                </button>
+                <button class="nav-btn flex-1 py-3 px-1 text-center font-medium border-b-2 border-transparent text-gray-500 text-xs" onclick="switchTab('history')">
+                    📊 History
+                </button>
+                <button class="nav-btn flex-1 py-3 px-1 text-center font-medium border-b-2 border-blue-500 text-blue-600 text-xs" onclick="switchTab('settings')">
+                    ⚙️ Settings
+                </button>
+            </div>
+        </nav>
+
+        <!-- Content Area -->
+        <div class="p-4">
+            <!-- Templates Tab -->
+            <div id="templates-tab" class="tab-content hidden">
+                <h2>Templates Tab</h2>
+            </div>
+
+            <!-- Workout Tab -->
+            <div id="workout-tab" class="tab-content hidden">
+                <h2>Workout Tab</h2>
+            </div>
+
+            <!-- History Tab -->
+            <div id="history-tab" class="tab-content hidden">
+                <h2>History Tab</h2>
+            </div>
+
+            <!-- Settings Tab -->
+            <div id="settings-tab" class="tab-content">
+                <h2 class="text-lg font-semibold mb-4">Settings</h2>
+                
+                <!-- Password Change Section -->
+                <div class="bg-gray-50 rounded-lg p-4 mb-4">
+                    <h3 class="text-md font-medium mb-3">Change Password</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+                            <input type="password" id="current-password" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500" placeholder="Enter current password">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                            <input type="password" id="new-password" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500" placeholder="Enter new password">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+                            <input type="password" id="confirm-password" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500" placeholder="Confirm new password">
+                        </div>
+                        <div id="password-requirements" class="text-xs text-gray-600 bg-blue-50 p-2 rounded">
+                            <div class="mb-2"><strong>Password Requirements:</strong></div>
+                            <ul class="list-disc list-inside space-y-1">
+                                <li>At least 6 characters</li>
+                                <li>Cannot be a common password</li>
+                            </ul>
+                        </div>
+                        <button onclick="changePassword()" class="w-full bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600 transition-colors">
+                            Change Password
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Account Section -->
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <h3 class="text-md font-medium mb-3">Account</h3>
+                    <button class="w-full bg-red-500 text-white py-2 rounded-md hover:bg-red-600 transition-colors">
+                        Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tabName) {
+            console.log('Switching to tab:', tabName);
+            
+            // Update nav buttons
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('border-blue-500', 'text-blue-600');
+                btn.classList.add('border-transparent', 'text-gray-500');
+            });
+            
+            // Find and activate the clicked tab button
+            const activeBtn = Array.from(document.querySelectorAll('.nav-btn')).find(btn => 
+                btn.textContent.includes(tabName === 'templates' ? 'Templates' : 
+                                       tabName === 'workout' ? 'Workout' : 
+                                       tabName === 'history' ? 'History' : 'Settings')
+            );
+            
+            if (activeBtn) {
+                activeBtn.classList.remove('border-transparent', 'text-gray-500');
+                activeBtn.classList.add('border-blue-500', 'text-blue-600');
+            }
+
+            // Show/hide content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+            
+            const targetTab = document.getElementById(`${tabName}-tab`);
+            if (targetTab) {
+                targetTab.classList.remove('hidden');
+            }
+        }
+
+        function changePassword() {
+            const current = document.getElementById('current-password').value;
+            const newPass = document.getElementById('new-password').value;
+            const confirm = document.getElementById('confirm-password').value;
+            
+            if (!current || !newPass || !confirm) {
+                alert('Please fill in all fields');
+                return;
+            }
+            
+            if (newPass !== confirm) {
+                alert('New passwords do not match');
+                return;
+            }
+            
+            alert('Password change functionality working! (This is just a test)');
+        }
+        
+        // Initialize to settings tab
+        switchTab('settings');
+    </script>
+</body>
+</html>

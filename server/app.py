@@ -6,7 +6,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from config import config
 from db import init_db
-from auth import login, register, get_current_user_id
+from auth import login, register, change_password, get_password_policy, get_current_user_id
 from models import Template, TemplateExercise, Session, SessionExercise
 from validation import (
     validate_request, validate_json_size, ValidationError,
@@ -64,6 +64,17 @@ def register_routes(app, limiter, config_obj):
     @validate_json_size(10)  # Small limit for auth data
     def auth_register():
         return register()
+    
+    @app.route('/api/auth/change-password', methods=['PUT'])
+    @jwt_required()
+    @limiter.limit("10 per minute")  # Rate limit password changes
+    @validate_json_size(10)
+    def auth_change_password():
+        return change_password()
+    
+    @app.route('/api/auth/password-policy', methods=['GET'])
+    def auth_password_policy():
+        return get_password_policy()
 
     # Template routes
     @app.route('/api/templates', methods=['GET'])

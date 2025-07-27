@@ -2,44 +2,84 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from db import get_db
 import sqlite3
 import re
+import os
 from datetime import datetime
 
 class User:
     @staticmethod
+    def get_password_policy():
+        """Get password policy from configuration."""
+        from config import config
+        config_name = os.environ.get('FLASK_ENV', 'development')
+        
+        # Get config instance to access password policy
+        if config_name in config:
+            config_obj = config[config_name]()
+            return {
+                'min_length': config_obj.PASSWORD_MIN_LENGTH,
+                'max_length': config_obj.PASSWORD_MAX_LENGTH,
+                'require_uppercase': config_obj.PASSWORD_REQUIRE_UPPERCASE,
+                'require_lowercase': config_obj.PASSWORD_REQUIRE_LOWERCASE,
+                'require_numbers': config_obj.PASSWORD_REQUIRE_NUMBERS,
+                'require_special': config_obj.PASSWORD_REQUIRE_SPECIAL,
+                'block_common': config_obj.PASSWORD_BLOCK_COMMON,
+            }
+        else:
+            # Fallback defaults
+            return {
+                'min_length': 8,
+                'max_length': 128,
+                'require_uppercase': True,
+                'require_lowercase': True,
+                'require_numbers': True,
+                'require_special': True,
+                'block_common': True,
+            }
+    
+    @staticmethod
     def validate_password_strength(password):
         """
-        Validate password strength according to security policy.
+        Validate password strength according to configurable security policy.
         Returns (is_valid, error_message)
         """
-        if len(password) < 8:
-            return False, "Password must be at least 8 characters long"
+        policy = User.get_password_policy()
         
-        if len(password) > 128:
-            return False, "Password must be no longer than 128 characters"
+        if len(password) < policy['min_length']:
+            return False, f"Password must be at least {policy['min_length']} characters long"
         
-        # Check for at least one lowercase letter
-        if not re.search(r'[a-z]', password):
-            return False, "Password must contain at least one lowercase letter"
+        if len(password) > policy['max_length']:
+            return False, f"Password must be no longer than {policy['max_length']} characters"
         
-        # Check for at least one uppercase letter
-        if not re.search(r'[A-Z]', password):
-            return False, "Password must contain at least one uppercase letter"
+        requirements = []
         
-        # Check for at least one digit
-        if not re.search(r'\d', password):
-            return False, "Password must contain at least one number"
+        # Check for lowercase letter
+        if policy['require_lowercase'] and not re.search(r'[a-z]', password):
+            requirements.append("one lowercase letter")
         
-        # Check for at least one special character
-        if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
-            return False, "Password must contain at least one special character (!@#$%^&*(),.?\":{}|<>)"
+        # Check for uppercase letter
+        if policy['require_uppercase'] and not re.search(r'[A-Z]', password):
+            requirements.append("one uppercase letter")
+        
+        # Check for digit
+        if policy['require_numbers'] and not re.search(r'\d', password):
+            requirements.append("one number")
+        
+        # Check for special character
+        if policy['require_special'] and not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+            requirements.append("one special character (!@#$%^&*(),.?\":{}|<>)")
+        
+        if requirements:
+            return False, f"Password must contain at least: {', '.join(requirements)}"
         
         # Check for common weak passwords
-        weak_passwords = [
-            'password', 'password123', '12345678', 'qwerty123', 'admin123',
-            'letmein', 'welcome123', 'monkey123', '123456789', 'password1'
-        ]
-        if password.lower() in weak_passwords:
-            return False, "Password is too common and easily guessable"
+        if policy['block_common']:
+            weak_passwords = [
+                'password', 'password123', '12345678', 'qwerty123', 'admin123',
+                'letmein', 'welcome123', 'monkey123', '123456789', 'password1',
+                '123456', 'admin', 'guest', 'test', 'user'
+            ]
+            if password.lower() in weak_passwords:
+                return False, "Password is too common and easily guessable"
         
         return True, "Password meets security requirements"
     
@@ -76,6 +116,44 @@ class User:
         if user and check_password_hash(user['password_hash'], password):
             return user
         return None
+    
+    @staticmethod
+    def change_password(user_id, current_password, new_password):
+        """
+        Change user password after verifying current password.
+        Returns (success, error_message)
+        """
+        # Get user by ID
+        with get_db() as conn:
+            user = conn.execute(
+                "SELECT * FROM users WHERE id = ?", (user_id,)
+            ).fetchone()
+            
+            if not user:
+                return False, "User not found"
+            
+            # Verify current password
+            if not check_password_hash(user['password_hash'], current_password):
+                return False, "Current password is incorrect"
+            
+            # Validate new password strength
+            is_valid, error_message = User.validate_password_strength(new_password)
+            if not is_valid:
+                return False, error_message
+            
+            # Check that new password is different from current
+            if check_password_hash(user['password_hash'], new_password):
+                return False, "New password must be different from current password"
+            
+            # Update password
+            new_password_hash = generate_password_hash(new_password)
+            conn.execute(
+                "UPDATE users SET password_hash = ? WHERE id = ?",
+                (new_password_hash, user_id)
+            )
+            conn.commit()
+            
+            return True, "Password changed successfully"
 
 class Template:
     @staticmethod

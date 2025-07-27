@@ -33,8 +33,12 @@ RUN mkdir -p data logs backups && \
 # Switch to non-root user
 USER workout
 
-# Initialize database
-RUN cd server && DATABASE_PATH=/app/data/workout.db python seed.py
+# Initialize database with temporary secrets for build
+RUN cd server && DATABASE_PATH=/app/data/workout.db \
+    SECRET_KEY=temp-build-secret-key-32-characters-long \
+    JWT_SECRET_KEY=temp-build-jwt-secret-key-32-characters-long \
+    SKIP_SECRET_VALIDATION=true \
+    python seed.py
 
 # Expose port
 EXPOSE 8080

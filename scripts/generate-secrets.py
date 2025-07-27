@@ -50,11 +50,65 @@ def main():
         cors_origins = "http://localhost:8080"
         print(f"Using default: {cors_origins}")
     
+    # Environment type
+    print("\n🏭 Environment Configuration:")
+    env_type = input("Environment type (development/production) [production]: ").strip()
+    if not env_type:
+        env_type = "production"
+    
     # JWT expiry
     print("\n⏰ JWT Token Configuration:")
     jwt_minutes = input("JWT expiry in minutes (default: 15): ").strip()
     if not jwt_minutes:
         jwt_minutes = "15"
+    
+    # Password policy configuration
+    print("\n🔒 Password Policy Configuration:")
+    print("Configure password complexity requirements")
+    use_default_password_policy = input("Use default password policy? (Y/n): ").strip().lower()
+    
+    if use_default_password_policy != 'n':
+        if env_type == "development":
+            password_policy = {
+                'min_length': '6',
+                'max_length': '128',
+                'require_uppercase': 'false',
+                'require_lowercase': 'false', 
+                'require_numbers': 'false',
+                'require_special': 'false',
+                'block_common': 'true'
+            }
+            print("Using lenient development defaults:")
+        else:
+            password_policy = {
+                'min_length': '8',
+                'max_length': '128',
+                'require_uppercase': 'true',
+                'require_lowercase': 'true',
+                'require_numbers': 'true',
+                'require_special': 'true',
+                'block_common': 'true'
+            }
+            print("Using strict production defaults:")
+        
+        print(f"  Minimum length: {password_policy['min_length']} characters")
+        print(f"  Maximum length: {password_policy['max_length']} characters")
+        print(f"  Require uppercase: {password_policy['require_uppercase']}")
+        print(f"  Require lowercase: {password_policy['require_lowercase']}")
+        print(f"  Require numbers: {password_policy['require_numbers']}")
+        print(f"  Require special chars: {password_policy['require_special']}")
+        print(f"  Block common passwords: {password_policy['block_common']}")
+    else:
+        print("\nCustom password policy:")
+        password_policy = {
+            'min_length': input("Minimum password length [8]: ").strip() or '8',
+            'max_length': input("Maximum password length [128]: ").strip() or '128',
+            'require_uppercase': 'true' if input("Require uppercase letters? (Y/n): ").strip().lower() != 'n' else 'false',
+            'require_lowercase': 'true' if input("Require lowercase letters? (Y/n): ").strip().lower() != 'n' else 'false',
+            'require_numbers': 'true' if input("Require numbers? (Y/n): ").strip().lower() != 'n' else 'false',
+            'require_special': 'true' if input("Require special characters? (Y/n): ").strip().lower() != 'n' else 'false',
+            'block_common': 'true' if input("Block common passwords? (Y/n): ").strip().lower() != 'n' else 'false'
+        }
     
     # Rate limiting configuration
     print("\n🚦 Rate Limiting Configuration:")
@@ -80,12 +134,6 @@ def main():
         rate_limit_login = input("Login endpoint limit: ").strip() or "5 per minute"
         rate_limit_register = input("Register endpoint limit: ").strip() or "3 per minute"
     
-    # Environment type
-    print("\n🏭 Environment Configuration:")
-    env_type = input("Environment type (development/production) [production]: ").strip()
-    if not env_type:
-        env_type = "production"
-    
     # Generate .env file
     env_content = f"""# Workout Tracker Environment Configuration
 # Generated on {os.popen('date').read().strip()}
@@ -110,6 +158,15 @@ RATE_LIMIT_DEFAULT={rate_limit_default}
 RATE_LIMIT_AUTH_LOGIN={rate_limit_login}
 RATE_LIMIT_AUTH_REGISTER={rate_limit_register}
 RATE_LIMIT_STORAGE_URI=memory://
+
+# Password Policy Configuration
+PASSWORD_MIN_LENGTH={password_policy['min_length']}
+PASSWORD_MAX_LENGTH={password_policy['max_length']}
+PASSWORD_REQUIRE_UPPERCASE={password_policy['require_uppercase']}
+PASSWORD_REQUIRE_LOWERCASE={password_policy['require_lowercase']}
+PASSWORD_REQUIRE_NUMBERS={password_policy['require_numbers']}
+PASSWORD_REQUIRE_SPECIAL={password_policy['require_special']}
+PASSWORD_BLOCK_COMMON={password_policy['block_common']}
 
 # Flask Environment
 FLASK_ENV={env_type}

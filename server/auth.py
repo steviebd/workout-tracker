@@ -54,5 +54,56 @@ def register():
         log_security_event('REGISTRATION_ERROR', f'Registration error for {username}: {str(e)}')
         return jsonify({'error': 'Registration failed'}), 500
 
+def change_password():
+    """Change user password."""
+    data = request.get_json()
+    if not data or not all(k in data for k in ['current_password', 'new_password']):
+        log_security_event('PASSWORD_CHANGE_ATTEMPT', 'Missing required fields')
+        return jsonify({'error': 'Current password and new password required'}), 400
+    
+    user_id = get_current_user_id()
+    current_password = data['current_password']
+    new_password = data['new_password']
+    
+    try:
+        success, message = User.change_password(user_id, current_password, new_password)
+        
+        if success:
+            log_security_event('PASSWORD_CHANGE_SUCCESS', f'Password changed for user {user_id}', user_id=user_id)
+            return jsonify({'message': message}), 200
+        else:
+            log_security_event('PASSWORD_CHANGE_FAILURE', f'Password change failed for user {user_id}: {message}', user_id=user_id)
+            return jsonify({'error': message}), 400
+            
+    except Exception as e:
+        log_security_event('PASSWORD_CHANGE_ERROR', f'Password change error for user {user_id}: {str(e)}', user_id=user_id)
+        return jsonify({'error': 'Password change failed'}), 500
+
+def get_password_policy():
+    """Get current password policy requirements."""
+    policy = User.get_password_policy()
+    
+    # Create user-friendly policy description
+    requirements = []
+    if policy['min_length'] > 0:
+        requirements.append(f"At least {policy['min_length']} characters")
+    if policy['max_length'] < 999:
+        requirements.append(f"No more than {policy['max_length']} characters")
+    if policy['require_lowercase']:
+        requirements.append("At least one lowercase letter")
+    if policy['require_uppercase']:
+        requirements.append("At least one uppercase letter")
+    if policy['require_numbers']:
+        requirements.append("At least one number")
+    if policy['require_special']:
+        requirements.append("At least one special character")
+    if policy['block_common']:
+        requirements.append("Cannot be a common password")
+    
+    return jsonify({
+        'requirements': requirements,
+        'policy': policy
+    }), 200
+
 def get_current_user_id():
     return int(get_jwt_identity())
