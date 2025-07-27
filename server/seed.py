@@ -103,14 +103,13 @@ def seed_data():
     # Create test user
     user_id = User.create('testuser', 'TestPassword123!', 'testuser@example.com')
 =======
-    # Create test user (will normally be created via Authelia)
-    user_id = User.create_from_authelia(
-        username='testuser',
-        display_name='Test User',
-        email='test@example.com',
-        groups='users'
-    )
->>>>>>> 114797d (added authelia)
+    # Create test user
+user_id = User.create(
+    username='testuser',
+    email='test@example.com',
+    password='TestPass123!',
+    role='user'
+)
     if user_id:
         print(f"Created test user with ID: {user_id}")
         

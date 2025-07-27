@@ -7,7 +7,6 @@ from datetime import datetime
 
 class User:
     @staticmethod
-<<<<<<< HEAD
     def get_password_policy():
         """Get password policy from configuration."""
         from config import config
@@ -97,16 +96,6 @@ class User:
                 cursor = conn.execute(
                     "INSERT INTO users (username, email, password_hash, role, must_change_password) VALUES (?, ?, ?, ?, ?)",
                     (username, email, password_hash, role, must_change_password)
-=======
-    def create_from_authelia(username, display_name=None, email=None, groups=None):
-        """Create a user from Authelia authentication headers."""
-        with get_db() as conn:
-            try:
-                cursor = conn.execute(
-                    """INSERT INTO users (username, display_name, email, groups, created_at, last_login) 
-                       VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))""",
-                    (username, display_name or username, email or '', groups or '')
->>>>>>> 114797d (added authelia)
                 )
                 conn.commit()
                 return cursor.lastrowid
@@ -122,7 +111,6 @@ class User:
             return dict(user) if user else None
 
     @staticmethod
-<<<<<<< HEAD
     def verify_password(username, password):
         user = User.get_by_username(username)
         if user and check_password_hash(user['password_hash'], password):
@@ -229,37 +217,10 @@ class User:
     @staticmethod
     def delete_user(user_id):
         """Delete user (admin only)."""
-=======
-    def update_from_authelia(user_id, display_name=None, email=None, groups=None):
-        """Update user information from Authelia headers."""
-        with get_db() as conn:
-            cursor = conn.execute(
-                """UPDATE users 
-                   SET display_name = ?, email = ?, groups = ?, last_login = datetime('now')
-                   WHERE id = ?""",
-                (display_name, email or '', groups or '', user_id)
-            )
-            conn.commit()
-            return cursor.rowcount > 0
-
-    @staticmethod
-    def get_all_users():
-        """Get all users (admin function)."""
-        with get_db() as conn:
-            users = conn.execute(
-                "SELECT id, username, display_name, email, groups, created_at, last_login FROM users ORDER BY username"
-            ).fetchall()
-            return [dict(user) for user in users]
-
-    @staticmethod
-    def delete_user(user_id):
-        """Delete a user and all their data (admin function)."""
->>>>>>> 114797d (added authelia)
         with get_db() as conn:
             cursor = conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
             conn.commit()
             return cursor.rowcount > 0
-<<<<<<< HEAD
     
     @staticmethod
     def reset_user_password(user_id, new_password):
@@ -344,8 +305,6 @@ class PasswordResetToken:
             )
             conn.commit()
             return cursor.rowcount > 0, "Password reset successfully"
-=======
->>>>>>> 114797d (added authelia)
 
 class Template:
     @staticmethod

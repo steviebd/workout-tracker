@@ -6,8 +6,8 @@ A minimal, mobile-first Progressive Web App for tracking daily workouts using re
 
 - 🏋️ **Template-based workouts** - Create reusable workout templates with custom exercises
 - 📱 **Mobile-first PWA** - Optimized for mobile devices with app-like experience
-- 🔐 **Authelia Authentication** - Enterprise SSO with multi-factor authentication
-- 👥 **Admin-controlled users** - No self-registration, admin-managed user accounts
+- 🔐 **JWT Authentication** - Secure token-based authentication with role management
+- 👥 **Flexible user management** - Built-in registration and admin-managed accounts
 - 🔄 **Offline sync** - Works offline and syncs when back online
 - 📊 **Workout history** - Track all your sessions with filtering
 - ⚡ **Pre-filled values** - Last recorded weights/reps automatically populate
@@ -43,36 +43,41 @@ The frontend is served by Flask as static files. Open `http://localhost:8080` in
 
 ### Test Credentials
 
-Access the application at `http://localhost:8080` and you'll be redirected to Authelia for login:
+Access the application at `http://localhost:8080` and login with:
 
-- **Admin User:** `admin` / `admin123` (has access to admin panel)
-- **Regular User:** `testuser` / `password123`
-- **Authelia Portal:** `http://localhost:9091`
+- **Admin User:** `admin` / `[password generated during seed.py]` (has access to admin panel)
+- **Registration:** Users can register directly at `/register`
 
-⚠️ **Important:** Change these default passwords immediately in production!
+⚠️ **Important:** Change the default admin password immediately after first login!
 
 ## API Endpoints
 
 ### Authentication
 
-**Note:** Authentication is handled by Authelia. Users must be created by administrators in the Authelia user database.
-
-**Check authentication status:**
+**Register a new user:**
 ```bash
-curl -X GET http://localhost:8080/api/auth/status \
-  -H "Cookie: authelia_session=your_session_cookie"
+curl -X POST http://localhost:8080/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username": "newuser", "email": "user@example.com", "password": "securepassword"}'
+```
+
+**Login and get JWT token:**
+```bash
+curl -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "admin", "password": "yourpassword"}'
 ```
 
 **Get current user info:**
 ```bash
 curl -X GET http://localhost:8080/api/user \
-  -H "Cookie: authelia_session=your_session_cookie"
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
 **Admin - Get all users:**
 ```bash
 curl -X GET http://localhost:8080/api/admin/users \
-  -H "Cookie: authelia_session=your_admin_session_cookie"
+  -H "Authorization: Bearer YOUR_ADMIN_JWT_TOKEN"
 ```
 
 ### Templates
@@ -80,7 +85,7 @@ curl -X GET http://localhost:8080/api/admin/users \
 **Get all templates:**
 ```bash
 curl -X GET http://localhost:8080/api/templates \
-  -H "Cookie: authelia_session=your_session_cookie"
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
 **Create a template:**

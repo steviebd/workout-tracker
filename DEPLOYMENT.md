@@ -1,17 +1,15 @@
 # Deployment Guide - Workout Tracker PWA
 
-Complete production deployment guide for LXC containers on Proxmox, Docker, and traditional VPS setups.
+Complete production deployment guide using Docker Compose.
 
 ## Table of Contents
 
 1. [Quick Start](#quick-start)
 2. [Security Configuration](#security-configuration)
-3. [LXC Container Setup on Proxmox](#lxc-container-setup-on-proxmox)
-4. [Docker Deployment](#docker-deployment)
-5. [Traditional VPS Deployment](#traditional-vps-deployment)
-6. [SSL/HTTPS Setup](#ssl-https-setup)
-7. [Monitoring and Maintenance](#monitoring-and-maintenance)
-8. [Backup and Recovery](#backup-and-recovery)
+3. [Docker Deployment](#docker-deployment)
+4. [SSL/HTTPS Setup](#ssl-https-setup)
+5. [Monitoring and Maintenance](#monitoring-and-maintenance)
+6. [Backup and Recovery](#backup-and-recovery)
 
 ## Quick Start
 
@@ -251,315 +249,9 @@ docker-compose restart workout-tracker
 - Regular security scans for XSS vulnerabilities
 - Future migration to `httpOnly` cookies with CSRF protection
 
-## Overview
 
-The Workout Tracker PWA now uses **Authelia** for enterprise-grade authentication with the following features:
 
-- 🔐 **Single Sign-On (SSO)** - Centralized authentication portal
-- 👥 **User Management** - Admin-controlled user provisioning
-- 🔒 **Multi-Factor Authentication** - Optional TOTP/WebAuthn support
-- 🛡️ **Access Control** - Group-based permissions (users, admins)
-- 🚫 **No Self-Registration** - Users must be created by administrators
-- 📊 **Admin Panel** - Built-in user management interface
 
-## Authentication Flow
-
-1. **User Access** → Application detects unauthenticated user
-2. **Redirect** → Nginx redirects to Authelia login portal
-3. **Authentication** → User logs in via Authelia (username/password + optional MFA)
-4. **Authorization** → Authelia validates user and passes headers to application
-5. **Application Access** → User gets access with proper permissions
-
-## LXC Container Setup on Proxmox
-
-### 1. Create LXC Container
-
-In Proxmox web interface:
-
-1. **Click "Create CT"**
-2. **General Tab:**
-   - CT ID: 100 (or next available)
-   - Hostname: `workout-tracker`
-   - Password: Set a secure root password
-   - SSH Public Key: (Optional but recommended)
-
-3. **Template Tab:**
-   - Storage: local
-   - Template: `ubuntu-22.04-standard` (download if not available)
-
-4. **Disks Tab:**
-   - Storage: local-lvm
-   - Disk size: 8 GB (minimum)
-
-5. **CPU Tab:**
-   - Cores: 2
-
-6. **Memory Tab:**
-   - Memory: 1024 MB
-   - Swap: 512 MB
-
-7. **Network Tab:**
-   - Bridge: vmbr0
-   - Static IP: Configure as needed (e.g., 192.168.1.100/24)
-   - Gateway: Your network gateway
-
-8. **DNS Tab:**
-   - DNS domain: your.domain.com
-   - DNS servers: 1.1.1.1, 8.8.8.8
-
-### 2. Start and Configure Container
-
-```bash
-# Start the container
-pct start 100
-
-# Enter the container
-pct enter 100
-
-# Update the system
-apt update && apt upgrade -y
-```
-
-### 3. Configure Network (if needed)
-
-```bash
-# Edit network configuration
-nano /etc/netplan/10-lxc.yaml
-
-# Example configuration:
-network:
-  version: 2
-  ethernets:
-    eth0:
-      dhcp4: false
-      addresses:
-        - 192.168.1.100/24
-      gateway4: 192.168.1.1
-      nameservers:
-        addresses:
-          - 1.1.1.1
-          - 8.8.8.8
-
-# Apply network configuration
-netplan apply
-```
-
-## Application Installation
-
-### Option 1: Automated LXC Installation (Recommended)
-
-**Run on Proxmox host to create and configure everything automatically:**
-
-```bash
-# Download and run the Proxmox LXC helper script
-wget https://github.com/steviebd/webserver-code/raw/main/deployment/scripts/proxmox-lxc-install.sh
-chmod +x proxmox-lxc-install.sh
-
-# Basic installation with DHCP
-./proxmox-lxc-install.sh --password mypassword
-
-# Installation with static IP
-./proxmox-lxc-install.sh --password mypassword --ip 192.168.1.100/24 --gateway 192.168.1.1
-
-# Full customization
-./proxmox-lxc-install.sh \
-  --ct-id 100 \
-  --hostname workout-tracker \
-  --password mypassword \
-  --ssh-key "$(cat ~/.ssh/id_rsa.pub)" \
-  --ip 192.168.1.100/24 \
-  --gateway 192.168.1.1 \
-  --cores 4 \
-  --memory 2048 \
-  --disk-size 16
-```
-
-This script will:
-- Create the LXC container with specified configuration
-- Download Ubuntu 22.04 template if needed
-- Install and configure the Workout Tracker application
-- Set up nginx, systemd service, and all dependencies
-- Provide ready-to-use application
-
-### Option 2: Manual Installation Inside Existing Container
-
-1. **Download the application:**
-   ```bash
-   cd /tmp
-   wget https://github.com/steviebd/workout-tracker/archive/refs/heads/mvp.zip
-   unzip mvp.zip
-   cd workout-tracker-mvp
-   ```
-
-2. **Run the installation script:**
-   ```bash
-   chmod +x deployment/scripts/install.sh
-   ./deployment/scripts/install.sh
-   ```
-
-3. **The script will:**
-   - Install all dependencies (Python, nginx, Redis, Authelia)
-   - Create application user and directories
-   - Set up Python virtual environment
-   - Configure systemd services (workout-tracker, authelia, redis)
-   - Set up nginx with Authelia integration
-   - Initialize database with test data
-   - Configure log rotation and backups
-   - Create default admin and test users in Authelia
-
-### Option 3: Manual Installation
-
-1. **Install dependencies:**
-   ```bash
-   apt install -y python3 python3-pip python3-venv nginx sqlite3 curl wget
-   ```
-
-2. **Create application user:**
-   ```bash
-   useradd --system --home-dir /opt/workout-tracker --shell /bin/bash --create-home workout-tracker
-   ```
-
-3. **Set up application:**
-   ```bash
-   # Copy files
-   cp -r . /opt/workout-tracker/
-   cd /opt/workout-tracker
-   
-   # Set up Python environment
-   python3 -m venv venv
-   source venv/bin/activate
-   pip install -r requirements-production.txt
-   
-   # Configure environment
-   cp .env.example .env
-   # Edit .env with your values
-   nano .env
-   
-   # Initialize database with admin user
-   cd server && python seed.py && cd ..
-    # The script will output admin credentials - save them securely!
-   
-   # Set permissions
-   chown -R workout-tracker:workout-tracker /opt/workout-tracker
-   ```
-
-4. **Configure services:**
-   ```bash
-   # Install systemd service
-   cp deployment/systemd/workout-tracker.service /etc/systemd/system/
-   systemctl daemon-reload
-   systemctl enable workout-tracker
-   systemctl start workout-tracker
-   
-   # Configure nginx
-   cp deployment/nginx/workout-tracker.conf /etc/nginx/sites-available/
-   ln -s /etc/nginx/sites-available/workout-tracker.conf /etc/nginx/sites-enabled/
-   rm /etc/nginx/sites-enabled/default
-   systemctl restart nginx
-   ```
-
-### 3. Verify Installation
-
-```bash
-# Check service status
-systemctl status workout-tracker authelia redis-server nginx
-
-# Test the application
-curl http://localhost/health
-
-# Test Authelia
-curl http://localhost:9091/api/health
-
-# Check logs
-journalctl -u workout-tracker -f
-journalctl -u authelia -f
-```
-
-<<<<<<< HEAD
-=======
-### 4. User Management
-
-**Default Users Created:**
-- **Admin:** `admin` / `admin123` (change immediately!)
-- **Test User:** `testuser` / `password123`
-
-**Adding New Users:**
-```bash
-# Generate password hash
-authelia hash-password 'newuserpassword'
-
-# Edit users database
-sudo nano /etc/authelia/users_database.yml
-
-# Add user entry:
-# newuser:
-#   displayname: "New User"
-#   password: "$argon2id$v=19$m=65536,t=3,p=4$generated$hash"
-#   email: newuser@example.com
-#   groups:
-#     - users
-
-# Restart Authelia
-sudo systemctl restart authelia
-```
-
-**User Access Levels:**
-- `users` group: Can access workout tracker
-- `admins` group: Can access workout tracker + admin panel
-
-## Cloudflare Tunnel Configuration
-
-### 1. Set up Cloudflare Tunnel
-
-```bash
-# Run the Cloudflare setup script
-./deployment/cloudflare/setup-tunnel.sh
-```
-
-### 2. Manual Cloudflare Configuration
-
-1. **Create Tunnel in Cloudflare Dashboard:**
-   - Go to [Cloudflare Zero Trust](https://dash.cloudflare.com/)
-   - Navigate to **Access > Tunnels**
-   - Click **Create a tunnel**
-   - Choose **Cloudflared**
-   - Name your tunnel: `workout-tracker`
-   - Note the **Tunnel ID**
-
-2. **Download Credentials:**
-   - Download the JSON credentials file
-   - Save as `/etc/cloudflared/YOUR_TUNNEL_ID.json`
-   - Set proper permissions:
-     ```bash
-     chown cloudflared:cloudflared /etc/cloudflared/YOUR_TUNNEL_ID.json
-     chmod 600 /etc/cloudflared/YOUR_TUNNEL_ID.json
-     ```
-
-3. **Configure Tunnel:**
-   ```bash
-   # Copy and edit tunnel configuration
-   cp deployment/cloudflare/tunnel-config.yml /etc/cloudflared/config.yml
-   nano /etc/cloudflared/config.yml
-   
-   # Update with your tunnel ID and domain
-   ```
-
-4. **Start Cloudflare Tunnel:**
-   ```bash
-   systemctl enable cloudflared
-   systemctl start cloudflared
-   systemctl status cloudflared
-   ```
-
-### 3. DNS Configuration
-
-In your Cloudflare DNS settings, create CNAME records:
-
-- **Name:** `workout-tracker` (or subdomain of choice)
-- **Target:** `YOUR_TUNNEL_ID.cfargotunnel.com`
-- **Proxied:** Yes (orange cloud)
-
->>>>>>> 114797d (added authelia)
 ## SSL/HTTPS Setup
 
 ### Let's Encrypt with Certbot
@@ -719,35 +411,11 @@ chmod 600 .env
 docker-compose up -d
 ```
 
-## Traditional VPS Deployment
 
-### Ubuntu/Debian Server
-```bash
-# Install dependencies
-sudo apt update && sudo apt install -y python3 python3-pip python3-venv nginx sqlite3
 
-# Create application user
-sudo useradd --system --home-dir /opt/workout-tracker --create-home workout-tracker
+## JWT-Based Authentication System
 
-# Install application
-sudo -u workout-tracker git clone https://github.com/your-repo/workout-tracker.git /opt/workout-tracker
-cd /opt/workout-tracker
-
-# Run installation script
-sudo ./deployment/scripts/install.sh
-```
-
-### CentOS/RHEL
-```bash
-# Install dependencies
-sudo yum install -y python3 python3-pip nginx sqlite
-
-# Follow Ubuntu steps above
-```
-
-## Role-Based Authentication System
-
-The Workout Tracker now includes a comprehensive role-based authentication system with the following features:
+The Workout Tracker includes a comprehensive JWT-based authentication system with the following features:
 
 ### 👑 Administrator Capabilities
 
@@ -759,9 +427,11 @@ Administrators can:
 
 ### 🔐 Security Features
 
-1. **Secure Password Reset**: Users can reset passwords via email with single-use tokens that expire in 1 hour
-2. **Forced Password Changes**: New users and password resets require password changes on first login
-3. **SMTP Email Integration**: Configurable email service for password resets and user notifications
+1. **JWT Token Authentication**: Secure token-based authentication with configurable expiration
+2. **Secure Password Reset**: Users can reset passwords via email with single-use tokens that expire in 1 hour
+3. **Forced Password Changes**: New users and password resets require password changes on first login
+4. **SMTP Email Integration**: Configurable email service for password resets and user notifications
+5. **Role-Based Access Control**: Administrator and user roles with different permissions
 
 ### ⚙️ Email Configuration
 

@@ -3,9 +3,9 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_jwt_extended import JWTManager, jwt_required
 from config import config
 from db import init_db
-<<<<<<< HEAD
 from auth import login, register, change_password, get_password_policy, get_current_user_id, require_admin, forgot_password, reset_password, get_current_user
 from models import Template, TemplateExercise, Session, SessionExercise, User, PasswordResetToken
 from email_service import email_service
@@ -15,10 +15,6 @@ from validation import (
     validate_username
 )
 from security_logger import log_data_access, log_access_denied, log_security_event
-=======
-from auth_authelia import authelia_required, get_current_user_id, get_user_info, admin_required
-from models import Template, TemplateExercise, Session, SessionExercise, User
->>>>>>> 114797d (added authelia)
 
 def create_app():
     app = Flask(__name__)
@@ -32,7 +28,6 @@ def create_app():
     app.static_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'public'))
     
     # Initialize extensions
-<<<<<<< HEAD
     jwt = JWTManager(app)
     
     # Configure rate limiting
@@ -49,9 +44,6 @@ def create_app():
          supports_credentials=config_obj.CORS_SUPPORTS_CREDENTIALS,
          allow_headers=['Content-Type', 'Authorization'],
          methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
-=======
-    CORS(app)
->>>>>>> 114797d (added authelia)
     
     # Initialize database
     init_db()
@@ -61,7 +53,6 @@ def create_app():
     
     return app
 
-<<<<<<< HEAD
 def register_routes(app, limiter, config_obj):
     # Auth routes
     @app.route('/api/auth/login', methods=['POST'])
@@ -196,48 +187,19 @@ def register_routes(app, limiter, config_obj):
             return jsonify({'message': message})
         else:
             return jsonify({'error': message}), 400
-=======
-def register_routes(app):
-    # User info endpoint
-    @app.route('/api/user', methods=['GET'])
-    @authelia_required
-    def get_user():
-        user_info = get_user_info()
-        return jsonify(user_info)
-
-    # Admin endpoints
-    @app.route('/api/admin/users', methods=['GET'])
-    @authelia_required
-    @admin_required
-    def get_all_users():
-        users = User.get_all_users()
-        return jsonify(users)
-
-    @app.route('/api/admin/users/<int:user_id>', methods=['DELETE'])
-    @authelia_required
-    @admin_required
-    def delete_user(user_id):
-        if User.delete_user(user_id):
-            return '', 204
-        return jsonify({'error': 'User not found'}), 404
->>>>>>> 114797d (added authelia)
 
     # Template routes
     @app.route('/api/templates', methods=['GET'])
-    @authelia_required
+    @jwt_required()
     def get_templates():
         user_id = get_current_user_id()
         templates = Template.get_all_by_user(user_id)
         return jsonify(templates)
 
     @app.route('/api/templates', methods=['POST'])
-<<<<<<< HEAD
     @jwt_required()
     @validate_json_size(50)  # Limit to 50KB
     @validate_request(TEMPLATE_CREATION_SCHEMA)
-=======
-    @authelia_required
->>>>>>> 114797d (added authelia)
     def create_template():
         user_id = get_current_user_id()
         data = request.get_json()
@@ -254,13 +216,9 @@ def register_routes(app):
         return jsonify({'id': template_id, 'name': data['name']}), 201
 
     @app.route('/api/templates/<int:template_id>', methods=['PUT'])
-<<<<<<< HEAD
     @jwt_required()
     @validate_json_size(50)  # Limit to 50KB
     @validate_request(TEMPLATE_UPDATE_SCHEMA)
-=======
-    @authelia_required
->>>>>>> 114797d (added authelia)
     def update_template(template_id):
         user_id = get_current_user_id()
         data = request.get_json()
@@ -284,7 +242,7 @@ def register_routes(app):
         return jsonify({'id': template_id, 'name': data['name']})
 
     @app.route('/api/templates/<int:template_id>', methods=['DELETE'])
-    @authelia_required
+    @jwt_required()
     def delete_template(template_id):
         user_id = get_current_user_id()
         
@@ -297,7 +255,7 @@ def register_routes(app):
         return '', 204
 
     @app.route('/api/templates/<int:template_id>/exercises', methods=['GET'])
-    @authelia_required
+    @jwt_required()
     def get_template_exercises(template_id):
         user_id = get_current_user_id()
         
@@ -311,7 +269,7 @@ def register_routes(app):
         return jsonify(exercises)
 
     @app.route('/api/templates/<int:template_id>/exercises', methods=['POST'])
-    @authelia_required
+    @jwt_required()
     def add_template_exercise(template_id):
         user_id = get_current_user_id()
         data = request.get_json()
@@ -332,20 +290,16 @@ def register_routes(app):
 
     # Session routes
     @app.route('/api/sessions/latest/<int:template_exercise_id>', methods=['GET'])
-    @authelia_required
+    @jwt_required()
     def get_latest_session_exercise(template_exercise_id):
         user_id = get_current_user_id()
         latest = SessionExercise.get_latest_by_template_exercise(template_exercise_id, user_id)
         return jsonify(latest or {})
 
     @app.route('/api/sessions', methods=['POST'])
-<<<<<<< HEAD
     @jwt_required()
     @validate_json_size(500)  # Larger limit for session data
     @validate_request(SESSION_CREATION_SCHEMA)
-=======
-    @authelia_required
->>>>>>> 114797d (added authelia)
     def create_session():
         user_id = get_current_user_id()
         data = request.get_json()
@@ -378,7 +332,7 @@ def register_routes(app):
         return jsonify({'id': session_id}), 201
 
     @app.route('/api/sessions', methods=['GET'])
-    @authelia_required
+    @jwt_required()
     def get_sessions():
         user_id = get_current_user_id()
         template_id = request.args.get('template')
@@ -398,7 +352,7 @@ def register_routes(app):
         return jsonify(sessions)
 
     @app.route('/api/sessions/<int:session_id>', methods=['DELETE'])
-    @authelia_required
+    @jwt_required()
     def delete_session(session_id):
         user_id = get_current_user_id()
         
@@ -413,12 +367,12 @@ def register_routes(app):
         return jsonify({
             'status': 'healthy', 
             'service': 'workout-tracker',
-            'auth_method': 'authelia'
+            'auth_method': 'jwt'
         }), 200
 
     # Authentication status endpoint
     @app.route('/api/auth/status', methods=['GET'])
-    @authelia_required
+    @jwt_required()
     def auth_status():
         user_info = get_user_info()
         return jsonify({
@@ -443,8 +397,8 @@ if __name__ == '__main__':
     
     if config_name == 'development':
         app.static_folder = '../public'
-        print("⚠️  Development mode - Authelia headers will be simulated")
-        print("   In production, ensure Authelia is properly configured")
+        print("⚠️  Development mode with JWT authentication")
+        print("   In production, ensure proper JWT configuration")
         app.run(debug=config_obj.DEBUG, host=config_obj.HOST, port=config_obj.PORT)
     else:
         print("Use a WSGI server like gunicorn for production")

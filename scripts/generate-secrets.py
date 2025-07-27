@@ -127,7 +127,36 @@ def main():
     jwt_minutes = input("JWT expiry in minutes (default: 15): ").strip()
     if not jwt_minutes:
         jwt_minutes = "15"
-   
+    
+    # Password policy configuration
+    print("\n🔒 Password Policy Configuration:")
+    use_default_policy = input("Use default password policy? (Y/n): ").strip().lower()
+    
+    if use_default_policy != 'n':
+        password_policy = {
+            'min_length': 8,
+            'max_length': 128,
+            'require_uppercase': 'true',
+            'require_lowercase': 'true',
+            'require_numbers': 'true',
+            'require_special': 'true',
+            'block_common': 'true'
+        }
+        print("Using default policy: 8-128 chars, requires upper/lower/number/special")
+    else:
+        password_policy = {
+            'min_length': input("Minimum length (default: 8): ").strip() or 8,
+            'max_length': input("Maximum length (default: 128): ").strip() or 128,
+            'require_uppercase': 'true' if input("Require uppercase? (Y/n): ").strip().lower() != 'n' else 'false',
+            'require_lowercase': 'true' if input("Require lowercase? (Y/n): ").strip().lower() != 'n' else 'false',
+            'require_numbers': 'true' if input("Require numbers? (Y/n): ").strip().lower() != 'n' else 'false',
+            'require_special': 'true' if input("Require special chars? (Y/n): ").strip().lower() != 'n' else 'false',
+            'block_common': 'true' if input("Block common passwords? (Y/n): ").strip().lower() != 'n' else 'false'
+        }
+    
+    # Generate admin password
+    admin_password = generate_admin_password()
+    print(f"\n👤 Generated temporary admin password: {admin_password}")
     
     # Rate limiting configuration
     print("\n🚦 Rate Limiting Configuration:")
@@ -152,6 +181,9 @@ def main():
         rate_limit_default = input("General API limits: ").strip() or "1000 per hour, 100 per minute"
         rate_limit_login = input("Login endpoint limit: ").strip() or "5 per minute"
         rate_limit_register = input("Register endpoint limit: ").strip() or "3 per minute"
+    
+    # Get email configuration
+    email_config = get_email_config(env_type, cors_origins)
 
     # Generate .env file
     env_content = f"""# Workout Tracker Environment Configuration
@@ -214,17 +246,17 @@ APP_URL={cors_origins.split(',')[0]}
     print(env_content)
     print("-" * 40)
     
-        print("⚠️  Remember to:")
-        print("   1. Review the configuration")
-        print("   2. Update your domain in CORS_ORIGINS if needed")
-        print("   3. Never commit .env to git")
-        print("   4. Test the admin login with the credentials above")
-        if email_config:
-            print("   5. Test email functionality with password reset")
+    print("⚠️  Remember to:")
+    print("   1. Review the configuration")
+    print("   2. Update your domain in CORS_ORIGINS if needed")
+    print("   3. Never commit .env to git")
+    print("   4. Test the admin login with the credentials above")
+    if email_config:
+        print("   5. Test email functionality with password reset")
         
-        # Docker ready message
-        print(f"\n🐳 Ready for Docker Compose!")
-        print("Start with: docker-compose up -d")
+    # Docker ready message
+    print(f"\n🐳 Ready for Docker Compose!")
+    print("Start with: docker-compose up -d")
     
     # Docker environment
     print("\n🐳 For Docker deployment, set these environment variables:")
