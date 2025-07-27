@@ -127,54 +127,7 @@ def main():
     jwt_minutes = input("JWT expiry in minutes (default: 15): ").strip()
     if not jwt_minutes:
         jwt_minutes = "15"
-    
-    # Password policy configuration
-    print("\n🔒 Password Policy Configuration:")
-    print("Configure password complexity requirements")
-    use_default_password_policy = input("Use default password policy? (Y/n): ").strip().lower()
-    
-    if use_default_password_policy != 'n':
-        if env_type == "development":
-            password_policy = {
-                'min_length': '6',
-                'max_length': '128',
-                'require_uppercase': 'false',
-                'require_lowercase': 'false', 
-                'require_numbers': 'false',
-                'require_special': 'false',
-                'block_common': 'true'
-            }
-            print("Using lenient development defaults:")
-        else:
-            password_policy = {
-                'min_length': '8',
-                'max_length': '128',
-                'require_uppercase': 'true',
-                'require_lowercase': 'true',
-                'require_numbers': 'true',
-                'require_special': 'true',
-                'block_common': 'true'
-            }
-            print("Using strict production defaults:")
-        
-        print(f"  Minimum length: {password_policy['min_length']} characters")
-        print(f"  Maximum length: {password_policy['max_length']} characters")
-        print(f"  Require uppercase: {password_policy['require_uppercase']}")
-        print(f"  Require lowercase: {password_policy['require_lowercase']}")
-        print(f"  Require numbers: {password_policy['require_numbers']}")
-        print(f"  Require special chars: {password_policy['require_special']}")
-        print(f"  Block common passwords: {password_policy['block_common']}")
-    else:
-        print("\nCustom password policy:")
-        password_policy = {
-            'min_length': input("Minimum password length [8]: ").strip() or '8',
-            'max_length': input("Maximum password length [128]: ").strip() or '128',
-            'require_uppercase': 'true' if input("Require uppercase letters? (Y/n): ").strip().lower() != 'n' else 'false',
-            'require_lowercase': 'true' if input("Require lowercase letters? (Y/n): ").strip().lower() != 'n' else 'false',
-            'require_numbers': 'true' if input("Require numbers? (Y/n): ").strip().lower() != 'n' else 'false',
-            'require_special': 'true' if input("Require special characters? (Y/n): ").strip().lower() != 'n' else 'false',
-            'block_common': 'true' if input("Block common passwords? (Y/n): ").strip().lower() != 'n' else 'false'
-        }
+   
     
     # Rate limiting configuration
     print("\n🚦 Rate Limiting Configuration:")
@@ -199,17 +152,7 @@ def main():
         rate_limit_default = input("General API limits: ").strip() or "1000 per hour, 100 per minute"
         rate_limit_login = input("Login endpoint limit: ").strip() or "5 per minute"
         rate_limit_register = input("Register endpoint limit: ").strip() or "3 per minute"
-    
-    # Email configuration
-    email_config = get_email_config(env_type, cors_origins)
-    
-    # Admin user setup
-    print("\n👑 Administrator Setup:")
-    admin_password = generate_admin_password()
-    print("Generated secure admin password for initial setup")
-    print(f"Admin credentials will be: admin / {admin_password}")
-    print("⚠️  The admin will be required to change this password on first login")
-    
+
     # Generate .env file
     env_content = f"""# Workout Tracker Environment Configuration
 # Generated on {os.popen('date').read().strip()}
@@ -271,112 +214,6 @@ APP_URL={cors_origins.split(',')[0]}
     print(env_content)
     print("-" * 40)
     
-    # Save to file
-    save_file = input("\nSave to .env file? (Y/n): ").strip().lower()
-    if save_file != 'n':
-        with open('.env', 'w') as f:
-            f.write(env_content)
-        print("✅ Configuration saved to .env")
-        
-        # Set appropriate permissions
-        try:
-            os.chmod('.env', 0o600)
-            print("✅ Set secure file permissions on .env")
-        except:
-            print("⚠️  Warning: Could not set file permissions. Run: chmod 600 .env")
-        
-        # Initialize database and admin user
-        init_db = input("\nInitialize database and create admin user? (Y/n): ").strip().lower()
-        if init_db != 'n':
-            # Check for existing database
-            force_delete = input("Force delete existing database? (Y/n): ").strip().lower()
-            if force_delete != 'n':
-                # Delete existing database files (only local ones when running script locally)
-                local_db_path = './server/workout.db'
-                if os.path.exists(local_db_path):
-                    try:
-                        os.remove(local_db_path)
-                        print(f"✅ Deleted existing database: {local_db_path}")
-                    except Exception as e:
-                        print(f"⚠️  Could not delete {local_db_path}: {e}")
-                
-                # Ensure local database directory exists
-                try:
-                    os.makedirs('./server', exist_ok=True)
-                    print(f"✅ Ensured directory exists: ./server")
-                except Exception as e:
-                    print(f"⚠️  Could not create directory ./server: {e}")
-            
-            try:
-                print("\n🗄️  Initializing database...")
-                import subprocess
-                import sys
-                
-                # Check if virtual environment is needed
-                venv_path = None
-                if os.path.exists('.venv/bin/activate'):
-                    venv_path = '.venv/bin/python'
-                    print("✅ Found virtual environment at .venv/")
-                elif os.path.exists('venv/bin/activate'):
-                    venv_path = 'venv/bin/python'
-                    print("✅ Found virtual environment at venv/")
-                elif env_type == 'development':
-                    print("⚠️  No virtual environment found. You may need to:")
-                    print("   python3 -m venv .venv")
-                    print("   source .venv/bin/activate")
-                    print("   pip install -r requirements-production.txt")
-                
-                # Set environment variables for the subprocess
-                env = os.environ.copy()
-                with open('.env', 'r') as f:
-                    for line in f:
-                        if '=' in line and not line.startswith('#'):
-                            key, value = line.strip().split('=', 1)
-                            env[key] = value
-                
-                # Choose Python executable
-                python_cmd = venv_path if venv_path and os.path.exists(venv_path) else sys.executable
-                
-                # Get project root directory
-                project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-                print(f"📂 Project root: {project_root}")
-                
-                # Run seed script from project root
-                result = subprocess.run([python_cmd, 'server/seed.py'], 
-                                      env=env, capture_output=True, text=True, cwd=project_root)
-                
-                if result.returncode == 0:
-                    print("✅ Database initialized successfully!")
-                    print("\n👑 ADMIN CREDENTIALS:")
-                    print("=" * 30)
-                    print(f"Username: admin")
-                    print(f"Password: {admin_password}")
-                    print("=" * 30)
-                    print("⚠️  IMPORTANT: Save these credentials securely!")
-                    print("⚠️  The admin must change this password on first login")
-                    print("\nOutput from seed script:")
-                    print(result.stdout)
-                else:
-                    print("❌ Database initialization failed:")
-                    print(result.stderr)
-                    if "ModuleNotFoundError" in result.stderr:
-                        print("\n💡 Install dependencies:")
-                        if venv_path:
-                            print("   source .venv/bin/activate")
-                            print("   pip install -r requirements-production.txt")
-                        else:
-                            print("   python3 -m venv .venv")
-                            print("   source .venv/bin/activate") 
-                            print("   pip install -r requirements-production.txt")
-                    print("\nThen manually initialize with:")
-                    print("   python3 server/seed.py")
-                    
-            except Exception as e:
-                print(f"❌ Could not initialize database: {e}")
-                print("You can manually initialize later with:")
-                print("python3 server/seed.py")
-        
-        print("\n📋 Next Steps:")
         print("⚠️  Remember to:")
         print("   1. Review the configuration")
         print("   2. Update your domain in CORS_ORIGINS if needed")
