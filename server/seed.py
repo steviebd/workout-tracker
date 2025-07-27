@@ -90,6 +90,7 @@ def seed_data():
     
     init_db()
     
+<<<<<<< HEAD
     # Create admin user - use password from env if available (from generate-secrets.py)
     admin_password = os.environ.get('ADMIN_TEMP_PASSWORD', generate_temp_password())
     admin_id = User.create('admin', admin_password, 'admin@example.com', 'admin', must_change_password=True)
@@ -101,6 +102,15 @@ def seed_data():
     
     # Create test user
     user_id = User.create('testuser', 'TestPassword123!', 'testuser@example.com')
+=======
+    # Create test user (will normally be created via Authelia)
+    user_id = User.create_from_authelia(
+        username='testuser',
+        display_name='Test User',
+        email='test@example.com',
+        groups='users'
+    )
+>>>>>>> 114797d (added authelia)
     if user_id:
         print(f"Created test user with ID: {user_id}")
         

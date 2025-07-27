@@ -6,10 +6,12 @@ A minimal, mobile-first Progressive Web App for tracking daily workouts using re
 
 - 🏋️ **Template-based workouts** - Create reusable workout templates with custom exercises
 - 📱 **Mobile-first PWA** - Optimized for mobile devices with app-like experience
-- 🔒 **JWT Authentication** - Simple username/password login system
+- 🔐 **Authelia Authentication** - Enterprise SSO with multi-factor authentication
+- 👥 **Admin-controlled users** - No self-registration, admin-managed user accounts
 - 🔄 **Offline sync** - Works offline and syncs when back online
 - 📊 **Workout history** - Track all your sessions with filtering
 - ⚡ **Pre-filled values** - Last recorded weights/reps automatically populate
+- 🛡️ **Role-based access** - User and admin roles with different permissions
 
 ## Quick Start
 
@@ -41,25 +43,36 @@ The frontend is served by Flask as static files. Open `http://localhost:8080` in
 
 ### Test Credentials
 
-- **Username:** `testuser`
-- **Password:** `password123`
+Access the application at `http://localhost:8080` and you'll be redirected to Authelia for login:
+
+- **Admin User:** `admin` / `admin123` (has access to admin panel)
+- **Regular User:** `testuser` / `password123`
+- **Authelia Portal:** `http://localhost:9091`
+
+⚠️ **Important:** Change these default passwords immediately in production!
 
 ## API Endpoints
 
 ### Authentication
 
-**Register a new user:**
+**Note:** Authentication is handled by Authelia. Users must be created by administrators in the Authelia user database.
+
+**Check authentication status:**
 ```bash
-curl -X POST http://localhost:8080/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"username": "newuser", "password": "newpassword"}'
+curl -X GET http://localhost:8080/api/auth/status \
+  -H "Cookie: authelia_session=your_session_cookie"
 ```
 
-**Login:**
+**Get current user info:**
 ```bash
-curl -X POST http://localhost:8080/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"username": "testuser", "password": "password123"}'
+curl -X GET http://localhost:8080/api/user \
+  -H "Cookie: authelia_session=your_session_cookie"
+```
+
+**Admin - Get all users:**
+```bash
+curl -X GET http://localhost:8080/api/admin/users \
+  -H "Cookie: authelia_session=your_admin_session_cookie"
 ```
 
 ### Templates
@@ -67,7 +80,7 @@ curl -X POST http://localhost:8080/api/auth/login \
 **Get all templates:**
 ```bash
 curl -X GET http://localhost:8080/api/templates \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+  -H "Cookie: authelia_session=your_session_cookie"
 ```
 
 **Create a template:**

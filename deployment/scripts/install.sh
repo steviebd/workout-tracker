@@ -49,7 +49,8 @@ apt install -y \
     wget \
     unzip \
     logrotate \
-    cron
+    cron \
+    redis-server
 
 # Create application user
 if ! id "$APP_USER" &>/dev/null; then
@@ -108,10 +109,88 @@ cp deployment/systemd/workout-tracker.service /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable $SERVICE_NAME
 
+# Install Authelia
+print_status "Installing Authelia..."
+ARCH=$(uname -m)
+case $ARCH in
+    x86_64)
+        AUTHELIA_ARCH="amd64"
+        ;;
+    aarch64|arm64)
+        AUTHELIA_ARCH="arm64"
+        ;;
+    armv7l)
+        AUTHELIA_ARCH="arm"
+        ;;
+    *)
+        print_error "Unsupported architecture: $ARCH"
+        exit 1
+        ;;
+esac
+
+wget -q https://github.com/authelia/authelia/releases/latest/download/authelia-linux-${AUTHELIA_ARCH}.tar.gz
+tar -xzf authelia-linux-${AUTHELIA_ARCH}.tar.gz
+mv authelia /usr/local/bin/
+chmod +x /usr/local/bin/authelia
+rm authelia-linux-${AUTHELIA_ARCH}.tar.gz
+
+# Create Authelia configuration
+print_status "Setting up Authelia..."
+mkdir -p /etc/authelia
+cp -r deployment/authelia/* /etc/authelia/
+
+# Generate Authelia secrets
+AUTHELIA_JWT_SECRET=$(openssl rand -base64 32)
+AUTHELIA_SESSION_SECRET=$(openssl rand -base64 32)
+
+# Update Authelia configuration with generated secrets
+sed -i "s/a_very_important_secret/$AUTHELIA_JWT_SECRET/" /etc/authelia/configuration.yml
+sed -i "s/yourdomain.com/$(hostname -d || echo 'localhost')/" /etc/authelia/configuration.yml
+
+# Generate password hashes for default users
+TEST_PASSWORD_HASH=$(echo -n 'password123' | authelia hash-password | grep 'Digest:' | awk '{print $2}')
+ADMIN_PASSWORD_HASH=$(echo -n 'admin123' | authelia hash-password | grep 'Digest:' | awk '{print $2}')
+
+# Update users database with real password hashes
+sed -i "s/\$argon2id\$v=19\$m=65536,t=3,p=4\$c2FsdA\$hash/$TEST_PASSWORD_HASH/" /etc/authelia/users_database.yml
+
+# Create authelia user
+useradd --system --home /var/lib/authelia --shell /bin/false authelia
+mkdir -p /var/lib/authelia
+chown authelia:authelia /var/lib/authelia
+chown -R authelia:authelia /etc/authelia
+
+# Create Authelia systemd service
+cat > /etc/systemd/system/authelia.service << EOF
+[Unit]
+Description=Authelia authentication server
+After=network.target redis.service
+
+[Service]
+Type=exec
+User=authelia
+Group=authelia
+WorkingDirectory=/etc/authelia
+ExecStart=/usr/local/bin/authelia --config /etc/authelia/configuration.yml
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
 # Set up nginx
 print_status "Configuring nginx..."
-cp deployment/nginx/workout-tracker.conf /etc/nginx/sites-available/
+cp deployment/nginx/workout-tracker-authelia.conf /etc/nginx/sites-available/workout-tracker.conf
+cp deployment/nginx/authelia-server.conf /etc/nginx/
+cp deployment/nginx/authelia-location.conf /etc/nginx/
 ln -sf /etc/nginx/sites-available/workout-tracker.conf /etc/nginx/sites-enabled/
+
+# Update domain in nginx config
+sed -i "s/yourdomain.com/$(hostname -d || echo 'localhost')/" /etc/nginx/sites-available/workout-tracker.conf
+sed -i "s/yourdomain.com/$(hostname -d || echo 'localhost')/" /etc/nginx/authelia-location.conf
 
 # Remove default nginx site
 if [ -f "/etc/nginx/sites-enabled/default" ]; then
@@ -171,10 +250,30 @@ chmod 600 $APP_DIR/.env
 
 # Start services
 print_status "Starting services..."
+systemctl enable redis-server
+systemctl start redis-server
+systemctl enable authelia
+systemctl start authelia
 systemctl start $SERVICE_NAME
 systemctl restart nginx
 
 # Check service status
+if systemctl is-active --quiet redis-server; then
+    print_status "✅ Redis is running"
+else
+    print_error "❌ Redis failed to start"
+    systemctl status redis-server
+    exit 1
+fi
+
+if systemctl is-active --quiet authelia; then
+    print_status "✅ Authelia is running"
+else
+    print_error "❌ Authelia failed to start"
+    systemctl status authelia
+    exit 1
+fi
+
 if systemctl is-active --quiet $SERVICE_NAME; then
     print_status "✅ Workout Tracker service is running"
 else
@@ -193,18 +292,36 @@ fi
 
 print_status "🎉 Installation completed successfully!"
 echo
+print_status "🔐 Authelia Authentication Setup:"
+echo "• Authelia portal: http://your-server-ip:9091"
+echo "• Default admin: admin / admin123"
+echo "• Default user: testuser / password123"
+echo
 print_status "Next steps:"
-echo "1. Configure your domain/IP in nginx config: $APP_DIR/deployment/nginx/workout-tracker.conf"
+echo "1. Configure your domain in Authelia and nginx configs"
 echo "2. Set up SSL certificate (recommended: certbot for Let's Encrypt)"
+<<<<<<< HEAD
 
 echo "3. Test the application at http://your-server-ip"
+=======
+echo "3. Configure Cloudflare tunnel (see documentation)"
+echo "4. Add users to /etc/authelia/users_database.yml"
+echo "5. Test the application at http://your-server-ip"
+>>>>>>> 114797d (added authelia)
 echo
-print_status "Default test credentials:"
-echo "Username: testuser"
-echo "Password: password123"
+print_status "Important Security Notes:"
+echo "• Change default passwords immediately"
+echo "• Users must be created in Authelia first"
+echo "• No direct registration - users are provisioned via Authelia"
+echo "• Admin users have access to user management panel"
 echo
 print_status "Service management commands:"
-echo "• systemctl status $SERVICE_NAME"
+echo "• systemctl status $SERVICE_NAME authelia redis-server"
 echo "• systemctl restart $SERVICE_NAME"
-echo "• systemctl stop $SERVICE_NAME"
 echo "• journalctl -u $SERVICE_NAME -f"
+echo "• journalctl -u authelia -f"
+echo
+print_status "Adding new users:"
+echo "1. Generate password hash: authelia hash-password 'newpassword'"
+echo "2. Edit /etc/authelia/users_database.yml"
+echo "3. Restart Authelia: systemctl restart authelia"

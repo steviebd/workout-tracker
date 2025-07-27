@@ -251,6 +251,25 @@ docker-compose restart workout-tracker
 - Regular security scans for XSS vulnerabilities
 - Future migration to `httpOnly` cookies with CSRF protection
 
+## Overview
+
+The Workout Tracker PWA now uses **Authelia** for enterprise-grade authentication with the following features:
+
+- 🔐 **Single Sign-On (SSO)** - Centralized authentication portal
+- 👥 **User Management** - Admin-controlled user provisioning
+- 🔒 **Multi-Factor Authentication** - Optional TOTP/WebAuthn support
+- 🛡️ **Access Control** - Group-based permissions (users, admins)
+- 🚫 **No Self-Registration** - Users must be created by administrators
+- 📊 **Admin Panel** - Built-in user management interface
+
+## Authentication Flow
+
+1. **User Access** → Application detects unauthenticated user
+2. **Redirect** → Nginx redirects to Authelia login portal
+3. **Authentication** → User logs in via Authelia (username/password + optional MFA)
+4. **Authorization** → Authelia validates user and passes headers to application
+5. **Application Access** → User gets access with proper permissions
+
 ## LXC Container Setup on Proxmox
 
 ### 1. Create LXC Container
@@ -379,13 +398,14 @@ This script will:
    ```
 
 3. **The script will:**
-   - Install all dependencies
+   - Install all dependencies (Python, nginx, Redis, Authelia)
    - Create application user and directories
    - Set up Python virtual environment
-   - Configure systemd service
-   - Set up nginx
+   - Configure systemd services (workout-tracker, authelia, redis)
+   - Set up nginx with Authelia integration
    - Initialize database with test data
    - Configure log rotation and backups
+   - Create default admin and test users in Authelia
 
 ### Option 3: Manual Installation
 
@@ -442,16 +462,104 @@ This script will:
 
 ```bash
 # Check service status
-systemctl status workout-tracker
-systemctl status nginx
+systemctl status workout-tracker authelia redis-server nginx
 
 # Test the application
 curl http://localhost/health
 
+# Test Authelia
+curl http://localhost:9091/api/health
+
 # Check logs
 journalctl -u workout-tracker -f
+journalctl -u authelia -f
 ```
 
+<<<<<<< HEAD
+=======
+### 4. User Management
+
+**Default Users Created:**
+- **Admin:** `admin` / `admin123` (change immediately!)
+- **Test User:** `testuser` / `password123`
+
+**Adding New Users:**
+```bash
+# Generate password hash
+authelia hash-password 'newuserpassword'
+
+# Edit users database
+sudo nano /etc/authelia/users_database.yml
+
+# Add user entry:
+# newuser:
+#   displayname: "New User"
+#   password: "$argon2id$v=19$m=65536,t=3,p=4$generated$hash"
+#   email: newuser@example.com
+#   groups:
+#     - users
+
+# Restart Authelia
+sudo systemctl restart authelia
+```
+
+**User Access Levels:**
+- `users` group: Can access workout tracker
+- `admins` group: Can access workout tracker + admin panel
+
+## Cloudflare Tunnel Configuration
+
+### 1. Set up Cloudflare Tunnel
+
+```bash
+# Run the Cloudflare setup script
+./deployment/cloudflare/setup-tunnel.sh
+```
+
+### 2. Manual Cloudflare Configuration
+
+1. **Create Tunnel in Cloudflare Dashboard:**
+   - Go to [Cloudflare Zero Trust](https://dash.cloudflare.com/)
+   - Navigate to **Access > Tunnels**
+   - Click **Create a tunnel**
+   - Choose **Cloudflared**
+   - Name your tunnel: `workout-tracker`
+   - Note the **Tunnel ID**
+
+2. **Download Credentials:**
+   - Download the JSON credentials file
+   - Save as `/etc/cloudflared/YOUR_TUNNEL_ID.json`
+   - Set proper permissions:
+     ```bash
+     chown cloudflared:cloudflared /etc/cloudflared/YOUR_TUNNEL_ID.json
+     chmod 600 /etc/cloudflared/YOUR_TUNNEL_ID.json
+     ```
+
+3. **Configure Tunnel:**
+   ```bash
+   # Copy and edit tunnel configuration
+   cp deployment/cloudflare/tunnel-config.yml /etc/cloudflared/config.yml
+   nano /etc/cloudflared/config.yml
+   
+   # Update with your tunnel ID and domain
+   ```
+
+4. **Start Cloudflare Tunnel:**
+   ```bash
+   systemctl enable cloudflared
+   systemctl start cloudflared
+   systemctl status cloudflared
+   ```
+
+### 3. DNS Configuration
+
+In your Cloudflare DNS settings, create CNAME records:
+
+- **Name:** `workout-tracker` (or subdomain of choice)
+- **Target:** `YOUR_TUNNEL_ID.cfargotunnel.com`
+- **Proxied:** Yes (orange cloud)
+
+>>>>>>> 114797d (added authelia)
 ## SSL/HTTPS Setup
 
 ### Let's Encrypt with Certbot

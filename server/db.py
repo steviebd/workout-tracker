@@ -14,11 +14,19 @@ def init_db():
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY,
                 username TEXT UNIQUE NOT NULL,
+<<<<<<< HEAD
                 email TEXT UNIQUE,
                 password_hash TEXT NOT NULL,
                 role TEXT NOT NULL DEFAULT 'user',
                 must_change_password BOOLEAN DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+=======
+                display_name TEXT,
+                email TEXT,
+                groups TEXT,
+                created_at TIMESTAMP,
+                last_login TIMESTAMP
+>>>>>>> 114797d (added authelia)
             );
 
             CREATE TABLE IF NOT EXISTS templates (
